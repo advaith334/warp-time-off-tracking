@@ -8,7 +8,7 @@ These modules sit between HTTP routes and pure domain calculations. A route owns
 | --- | --- | --- |
 | [`policy_service.py`](policy_service.py) | [`domain/rules.py`](../domain/rules.py) | Policies, immutable versions, accrual rules |
 | [`assignment_service.py`](assignment_service.py) | Effective-date checks | Policy assignments |
-| [`group_service.py`](group_service.py) | Audience union and reconciliation | Employee groups, memberships, policy targets, assignments |
+| [`group_service.py`](group_service.py) | Audience union and reconciliation | Projected groups/memberships, policy targets, assignments |
 | [`accrual_service.py`](accrual_service.py) | [`domain/accrual.py`](../domain/accrual.py), [`domain/periods.py`](../domain/periods.py) | Ledger credits/forfeitures, job runs |
 | [`request_service.py`](request_service.py) | [`domain/requests.py`](../domain/requests.py) | Requests, frozen days, events, holds, debit/reversal |
 | [`rollover_service.py`](rollover_service.py) | [`domain/rollover.py`](../domain/rollover.py) | Expiry/carryover entries, job runs |
@@ -27,6 +27,7 @@ flowchart LR
 
 - An employee belongs to at most one company group; a policy can target several groups.
 - Membership changes preserve prior eligibility dates instead of rewriting history.
+- The local admin flow demonstrates these changes; production receives the same group data from Employee Service.
 
 ```mermaid
 flowchart TD
