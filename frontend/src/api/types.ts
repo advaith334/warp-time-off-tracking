@@ -32,3 +32,14 @@ export type Policy = {
     rules: Rule[]
   }
 }
+
+export type Balance = {
+  category_id: string
+  category_name: string
+  has_policy: boolean
+  policy_id: string | null
+  policy_name: string | null
+  is_unlimited: boolean
+  balance_minutes: number
+  day_minutes: number
+}

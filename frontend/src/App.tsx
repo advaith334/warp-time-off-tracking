@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, setActor } from './api/client'
-import type { Category, Employee, Policy } from './api/types'
+import type { Balance, Category, Employee, Policy } from './api/types'
 
 const inputClass = 'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm'
 const buttonClass = 'rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white'
@@ -9,6 +9,7 @@ export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [policies, setPolicies] = useState<Policy[]>([])
+  const [balances, setBalances] = useState<Balance[]>([])
   const [actorId, setActorId] = useState('adm_lindsey')
   const [categoryName, setCategoryName] = useState('')
   const [policyName, setPolicyName] = useState('')
@@ -37,6 +38,13 @@ export default function App() {
   useEffect(() => {
     void load()
   }, [])
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    api.get<Balance[]>('/employees/' + actorId + '/balances?on_date=' + today)
+      .then(setBalances)
+      .catch(() => setBalances([]))
+  }, [actorId])
 
   async function createCategory(event: React.FormEvent) {
     event.preventDefault()
@@ -98,6 +106,22 @@ export default function App() {
       </header>
 
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {balances.map((balance) => (
+          <article key={balance.category_id} className="rounded-xl border bg-white p-5">
+            <p className="text-sm font-medium">{balance.category_name}</p>
+            <p className="mt-2 text-2xl font-semibold">
+              {!balance.has_policy
+                ? 'No policy set'
+                : balance.is_unlimited
+                  ? 'Unlimited'
+                  : (balance.balance_minutes / balance.day_minutes).toFixed(2) + ' days'}
+            </p>
+            {balance.policy_name && <p className="mt-1 text-xs text-neutral-500">{balance.policy_name}</p>}
+          </article>
+        ))}
+      </section>
 
       {actor?.is_admin && (
         <section className="grid gap-4 rounded-xl border bg-white p-5 md:grid-cols-2">

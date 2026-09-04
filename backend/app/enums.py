@@ -27,3 +27,23 @@ class RateUnit(StrEnum):
     DAY = "DAY"
     HOUR = "HOUR"
     MINUTE = "MINUTE"
+
+
+class NewHireProration(StrEnum):
+    PRORATE = "PRORATE"
+    FULL = "FULL"
+    NONE = "NONE"
+
+
+class EntryType(StrEnum):
+    ACCRUAL = "ACCRUAL"
+
+
+class SourceType(StrEnum):
+    SCHEDULED_ACCRUAL = "SCHEDULED_ACCRUAL"
+    PAYROLL_ACCRUAL = "PAYROLL_ACCRUAL"
+
+
+class JobKind(StrEnum):
+    SCHEDULED = "SCHEDULED"
+    PAYROLL = "PAYROLL"

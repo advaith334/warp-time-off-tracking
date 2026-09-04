@@ -23,5 +23,8 @@ def validate_policy(kind: enums.PolicyKind, rules: list[dict]) -> None:
     if rule["method"] == enums.AccrualMethod.TIME:
         if rule.get("frequency") is None or rule.get("accrues_at") is None:
             raise PolicyRuleError("A time-based rule needs a frequency and accrual point.")
-    elif rule.get("frequency") is not None or rule.get("accrues_at") is not None:
-        raise PolicyRuleError("An hours-worked rule cannot use a calendar frequency.")
+    else:
+        if not rule.get("per_minutes_worked"):
+            raise PolicyRuleError("An hours-worked rule needs minutes worked per accrual.")
+        if rule.get("frequency") is not None or rule.get("accrues_at") is not None:
+            raise PolicyRuleError("An hours-worked rule cannot use a calendar frequency.")
