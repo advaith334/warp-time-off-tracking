@@ -35,4 +35,16 @@ describe('application shell', () => {
       expect(screen.getByRole('button', { name: 'My requests' })).toBeInTheDocument()
     })
   })
+
+  it('exposes implemented proration and negative-balance policy controls to admins', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
+
+    expect(screen.getByLabelText('New-hire accrual')).toBeInTheDocument()
+    const allowNegative = screen.getByLabelText('Allow negative balance')
+    const floor = screen.getByLabelText('Negative balance floor minutes')
+    expect(floor).toBeDisabled()
+    fireEvent.click(allowNegative)
+    expect(floor).toBeEnabled()
+  })
 })

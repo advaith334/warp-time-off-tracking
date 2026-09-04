@@ -1,6 +1,9 @@
 from datetime import date
+from decimal import Decimal
 
 from app import enums
+from app.domain.accrual import scheduled_amount
+from app.domain.periods import Period
 from app.models import BalanceSnapshot, LedgerEntry, TimeOffCategory
 from app.services import accrual_service, assignment_service, policy_service
 from sqlalchemy import func, select
@@ -71,6 +74,24 @@ def test_a_mid_period_joiner_is_prorated_by_eligible_calendar_days(session):
 
     assert entry.effective_date == date(2026, 2, 18)
     assert entry.amount_minutes == 52  # floor(60 minutes * 317 / 365)
+
+
+def test_new_hire_setting_supports_prorated_full_or_next_period_accrual():
+    values = {
+        mode: scheduled_amount(
+            amount=Decimal(20),
+            unit=enums.RateUnit.DAY,
+            period=Period(date(2026, 1, 1), date(2026, 1, 31)),
+            eligible_from=date(2026, 1, 16),
+            proration=mode,
+        )
+        for mode in enums.NewHireProration
+    }
+    assert values == {
+        enums.NewHireProration.PRORATE: 4954,
+        enums.NewHireProration.FULL: 9600,
+        enums.NewHireProration.NONE: 0,
+    }
 
 
 def test_payroll_replay_cannot_credit_the_same_work_twice(session):

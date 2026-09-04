@@ -170,6 +170,17 @@ def decide(
     actor_id: str,
     note: str | None,
 ) -> TimeOffRequest:
+    # Lock the workflow row before reading its state. The balance lock protects the
+    # accounting calculation, but it cannot stop two reviewers from both acting on
+    # a stale in-memory PENDING request.
+    request = session.scalar(
+        select(TimeOffRequest)
+        .where(TimeOffRequest.id == request.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if request is None:
+        raise RequestError("The request no longer exists.")
     if request.status != enums.RequestStatus.PENDING:
         raise RequestError("Only a pending request can be decided.")
     version_id = request.policy_version_id
