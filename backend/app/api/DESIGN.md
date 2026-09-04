@@ -23,9 +23,9 @@ flowchart LR
 
 | Route family | Employee | Admin | Scope |
 | --- | --- | --- | --- |
-| `/api/employees` | Read demo directory | Read demo directory | Company adapter |
+| `/api/employees` | Read demo directory | Read demo directory | Employee Service adapter |
 | `/api/categories`, `/api/policies` | Read | Read and write | Company |
-| `/api/groups`, `/api/groups/{id}/members` | Forbidden | Create, update, and remove | Company + group |
+| `/api/groups`, `/api/groups/{id}/members` | Forbidden | Manage the reference projection | Employee Service group IDs |
 | `/api/policies/{id}/audience` | Forbidden | Set all employees or selected groups | Company + policy |
 | `/api/policies/{id}/assignments` | Forbidden | Read and write | Company + policy |
 | `/api/employees/{id}/assignments` | Self | Read | Company + employee |
@@ -64,3 +64,5 @@ sequenceDiagram
 | Company-scoped resource is absent | `404` without cross-company disclosure |
 
 The generated source of truth is [`docs/openapi.json`](../../../docs/openapi.json). Regenerate it and the frontend declarations with `make contracts`.
+
+Employee and group routes make the take-home interactive. They represent data assumed to come from Employee Service; production does not make this API authoritative for employee records.

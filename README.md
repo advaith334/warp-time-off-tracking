@@ -8,8 +8,8 @@ Time is accounted for in integer minutes through an append-only ledger. Policies
 
 | Requirement | Where it lives |
 | --- | --- |
-| Employee and company boundaries | Deterministic adapters in [`backend/app/integrations`](backend/app/integrations) |
-| Policy definitions and reusable employee groups | Versioned policies, multi-select audiences, and effective-dated assignments; [service flows](backend/app/services/DESIGN.md) |
+| Assumed employee and company data | Consumed through deterministic local adapters; [external boundaries](backend/app/integrations/DESIGN.md) |
+| Policy definitions and audiences | Versioned policies, multi-select groups, and effective-dated assignments; [service flows](backend/app/services/DESIGN.md) |
 | Scheduled and payroll accrual | Idempotent accrual entry points; [service flows](backend/app/services/DESIGN.md#accrual-flows) |
 | Balances and auditability | Ledger-derived balances; [data model](backend/app/models.md) |
 | Employee requests and admin approvals | Frozen days, holds, row locks, debit/reversal; [request flow](backend/app/services/DESIGN.md#request-flow) |
@@ -23,11 +23,11 @@ The take-home supplies these capabilities; this repository consumes them through
 | Given by the brief | How this build treats it |
 | --- | --- |
 | Monday-Friday, 9am-5pm working day | Default employee schedule: five weekdays and 480 minutes per day. |
-| Employee Service | Source of employee identity, hire date, employment type, and work configuration. |
+| Employee Service | Source of employee identity, hire date, employment type, work configuration, groups, and membership. |
 | Company Service | Source of company identity, timezone, and pay-period anchor. |
 | Payroll Service | `on_payroll_processed` supplies worked minutes; its run ID makes accrual replay-safe. |
 
-The in-process fixtures only make the demo runnable. Production swaps the adapters, not the policy or accounting model; see [external boundaries](backend/app/integrations/DESIGN.md).
+The in-process fixtures and group tables only make the demo runnable. Production assumes these services supply the required information; this repository does not design their internals. See [external boundaries](backend/app/integrations/DESIGN.md).
 
 ## High-level design
 
@@ -37,7 +37,8 @@ flowchart LR
     API --> Services[Transaction services]
     Services --> Domain[Pure domain rules]
     Services --> DB[(PostgreSQL)]
-    Services --> Adapters[Employee / Company / Payroll / Holiday adapters]
+    Services --> Given[Employee / Company / Payroll adapters]
+    Services --> Holidays[Company holiday source]
 ```
 
 - API routes validate identity and input; services own transactions; domain modules perform calculations.
@@ -127,7 +128,7 @@ flowchart TB
     Queue --> Workers
     Workers --> Proxy
 
-    API --> External[Employee / Company / Payroll / Holiday services]
+    API --> External[Given services + holiday source]
     Workers --> External
 ```
 
@@ -143,7 +144,7 @@ The workload should be read-heavy overall, with write bursts during scheduled an
 
 CDN, WAF, caching, and an outbox are later additions, not baseline requirements.
 
-Production SSO, live payroll webhooks, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
+Production SSO, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
 
 ## Fifteen-minute review path
 

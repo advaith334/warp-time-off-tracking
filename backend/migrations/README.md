@@ -11,7 +11,7 @@ Alembic revisions live in [`versions/`](versions/) beside this map. Each migrati
 | `0003_time_off_requests` | Employee/admin workflow | Requests, frozen days, request events |
 | `0004_advanced_time_off_rules` | Holidays, caps, carryover, expiration, tenure | Holiday and advanced policy fields |
 | `0005_reviewer_experience` | Company-scoped job history and deterministic demo clock | Job-run scope, demo state |
-| `0006_employee_groups` | Reusable employee groups and policy audiences | Groups, memberships, group targets, all-employee flag |
+| `0006_employee_groups` | Employee Service group projection and policy audiences | Groups, memberships, group targets, all-employee flag |
 
 ## Fresh database
 
