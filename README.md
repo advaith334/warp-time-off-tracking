@@ -118,38 +118,17 @@ flowchart TB
     Workers --> External
 ```
 
-#### Expected workload
+The workload should be read-heavy overall, with write bursts during scheduled and payroll accruals.
 
-The system should be read-heavy overall, with predictable write bursts. The ratio is an input to measurement—not an automatic reason to add replicas or shards.
-
-| Workload | Expected shape | Consistency and scaling decision |
-| --- | --- | --- |
-| Balance, policy, and request views | Frequent small reads | Use indexed primary reads first; balances need read-after-write consistency. |
-| Requests and approvals | Infrequent writes | Keep each state change and its ledger entries in one primary transaction. |
-| Scheduled and payroll accruals | Bursty batched writes | Queue by company or employee, bound concurrency, and preserve idempotency. |
-| Audit and reporting | Growing, scan-heavy reads | Paginate and index first; move stale-tolerant queries to a replica or projection later. |
-| Ledger history | Append-heavy over time | Partition the table when index, vacuum, or retention costs become material. |
-
-| Baseline component | Why it belongs |
+| Pressure | Response |
 | --- | --- |
-| Static frontend hosting | Serves the small compiled React application without consuming API capacity. |
-| Load balancer and stateless API tasks | Spread requests across healthy instances and scale horizontally without session affinity. |
-| SQS and workers | Keep accrual runs and integration retries away from interactive request paths. |
-| RDS Proxy and Multi-AZ PostgreSQL | Control connection bursts while retaining transactional ledger guarantees and database failover. |
+| Interactive reads and writes | Use the primary for consistent balances and approvals. |
+| Accrual bursts | Queue idempotent work by company or employee. |
+| Reporting reads | Add a replica or projection when the primary shows contention. |
+| Ledger growth | Partition the ledger before considering sharding. |
+| Primary write limit | Shard by company only after measured need. |
 
-Add the following only after traffic, reliability requirements, or measurements justify them:
-
-| Later addition | Trigger |
-| --- | --- |
-| CDN | Users are geographically distributed or static-asset latency becomes material. |
-| WAF | Internet exposure, compliance, or observed attacks require managed filtering beyond application controls. |
-| Read replica or projections | Stale-tolerant audit and reporting reads create sustained primary contention. |
-| Transactional outbox | A committed user action must atomically guarantee later asynchronous delivery. |
-| Cache | Measured repeated reads cannot be served efficiently by database indexes or projections. |
-| Database sharding | A partitioned, well-tuned primary still cannot sustain write volume; shard by company to retain transaction boundaries. |
-
-- Partition background work by company or employee and retain the existing idempotency keys for safe retries.
-- Keep PostgreSQL as the accounting source of truth; do not split domain transactions into services prematurely.
+CDN, WAF, caching, and an outbox are later additions, not baseline requirements.
 
 Production SSO, live payroll webhooks, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
 
