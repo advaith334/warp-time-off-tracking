@@ -374,6 +374,7 @@ def test_advanced_policy_settings_round_trip_through_the_admin_api(session):
                 "category_id": category.id,
                 "effective_from": "2026-01-01",
                 "kind": "ACCRUAL",
+                "all_employees": True,
                 "change_reason": "Initial policy",
                 "new_hire_proration": "FULL",
                 "allow_negative": True,

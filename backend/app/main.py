@@ -12,6 +12,7 @@ from app.api import (
     balances,
     dev,
     employees,
+    groups,
     holidays,
     policies,
     requests,
@@ -40,6 +41,7 @@ app.add_middleware(
 
 for module in (
     employees,
+    groups,
     policies,
     assignments,
     balances,

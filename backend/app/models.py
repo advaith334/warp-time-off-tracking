@@ -7,6 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Enum,
@@ -63,6 +64,36 @@ class TimeOffCategory(Base, TimestampMixin):
     )
 
 
+class EmployeeGroup(Base, TimestampMixin):
+    __tablename__ = "employee_groups"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    members: Mapped[list[EmployeeGroupMember]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+    policy_targets: Mapped[list[PolicyGroupTarget]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+    __table_args__ = (
+        UniqueConstraint("company_id", "name", name="uq_employee_group_name_per_company"),
+    )
+
+
+class EmployeeGroupMember(Base, TimestampMixin):
+    __tablename__ = "employee_group_members"
+
+    group_id: Mapped[str] = mapped_column(
+        ForeignKey("employee_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    employee_id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    group: Mapped[EmployeeGroup] = relationship(back_populates="members")
+
+
 class Policy(Base, TimestampMixin):
     __tablename__ = "policies"
 
@@ -71,6 +102,7 @@ class Policy(Base, TimestampMixin):
     category_id: Mapped[str] = mapped_column(ForeignKey("time_off_categories.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    all_employees: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     category: Mapped[TimeOffCategory] = relationship(back_populates="policies")
     versions: Mapped[list[PolicyVersion]] = relationship(
@@ -79,9 +111,27 @@ class Policy(Base, TimestampMixin):
         cascade="all, delete-orphan",
     )
     assignments: Mapped[list[PolicyAssignment]] = relationship(back_populates="policy")
+    group_targets: Mapped[list[PolicyGroupTarget]] = relationship(
+        back_populates="policy", cascade="all, delete-orphan"
+    )
     __table_args__ = (
         UniqueConstraint("company_id", "name", name="uq_policy_name_per_company"),
     )
+
+
+class PolicyGroupTarget(Base, TimestampMixin):
+    __tablename__ = "policy_group_targets"
+
+    policy_id: Mapped[str] = mapped_column(
+        ForeignKey("policies.id", ondelete="CASCADE"), primary_key=True
+    )
+    group_id: Mapped[str] = mapped_column(
+        ForeignKey("employee_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    policy: Mapped[Policy] = relationship(back_populates="group_targets")
+    group: Mapped[EmployeeGroup] = relationship(back_populates="policy_targets")
 
 
 class PolicyVersion(Base, TimestampMixin):

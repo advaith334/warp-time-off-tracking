@@ -11,6 +11,7 @@ Alembic revisions live in [`versions/`](versions/) beside this map. Each migrati
 | `0003_time_off_requests` | Employee/admin workflow | Requests, frozen days, request events |
 | `0004_advanced_time_off_rules` | Holidays, caps, carryover, expiration, tenure | Holiday and advanced policy fields |
 | `0005_reviewer_experience` | Company-scoped job history and deterministic demo clock | Job-run scope, demo state |
+| `0006_employee_groups` | Reusable employee groups and policy audiences | Groups, memberships, group targets, all-employee flag |
 
 ## Fresh database
 
@@ -21,7 +22,8 @@ flowchart LR
     A2 --> A3[0003 requests]
     A3 --> A4[0004 advanced rules]
     A4 --> A5[0005 reviewer state]
-    A5 --> Seed[Deterministic demo seed]
+    A5 --> A6[0006 employee groups]
+    A6 --> Seed[Deterministic demo seed]
 ```
 
 ```bash

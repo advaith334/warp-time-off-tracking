@@ -7,10 +7,12 @@ The React/Vite app is a compact reviewer interface over the same server-enforced
 ```mermaid
 flowchart TD
     Actor[Selected demo actor] --> Role{Admin?}
-    Role -- no --> Self[My time off]
+    Role -- no --> Self[My leave + plain-language rules]
     Role -- no --> Requests[My requests]
     Role -- yes --> Overview[Company overview]
-    Role -- yes --> Policies[Policies + assignments]
+    Role -- yes --> Calendar[Annual holiday + leave calendar]
+    Role -- yes --> Groups[People groups + membership]
+    Role -- yes --> Policies[Policies + group audiences]
     Role -- yes --> Approvals[Approval queue]
     Role -- yes --> Audit[Ledger + job runs]
     Role -- yes --> Demo[Clock + manual jobs]
@@ -24,9 +26,11 @@ flowchart TD
 
 | View | Reads | Actions |
 | --- | --- | --- |
-| My time off | Category balances, available minutes, holds | None |
-| My requests | Own request history and events | Preview, partial-day submit, cancel |
-| Policies | Categories, policies, versions, holidays | Create or version policies, configure either accrual method, assign employees, sync holidays |
+| My leave | Category balances, available time, holds, earning and carryover rules | Start a request |
+| My requests | Own request history and events | Preview, partial-day or custom-type submit, cancel |
+| Calendar | Holidays plus approved and pending team leave | Jump from the event index to a month |
+| People groups | Employees and reusable company groups | Create/remove groups and update multi-group membership |
+| Policies | Categories, policies, versions, groups, holidays | Create or version policies, target all employees or multiple groups, sync holidays |
 | Approvals | Company pending requests and events | Approve or deny |
 | Audit | Filtered ledger and job runs | Select employee/policy |
 | Demo | Simulated date and job results | Move clock, run accrual or rollover |

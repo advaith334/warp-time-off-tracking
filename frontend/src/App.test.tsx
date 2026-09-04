@@ -1,44 +1,72 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { setActor } from './api/client'
 
 describe('application shell', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    setActor('adm_lindsey')
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
+      const policy = {
+        id: 'pol_vacation', name: 'Vacation', category_id: 'cat_vacation',
+        category_name: 'Vacation', created_by: 'adm_lindsey', version_count: 1,
+        all_employees: true, group_ids: [], group_names: [],
+        current_version: {
+          id: 'ver_1', version_no: 1, effective_from: '2026-01-01',
+          kind: 'ACCRUAL', created_by: 'adm_lindsey', change_reason: 'Initial',
+          created_at: '2026-01-01T00:00:00Z', new_hire_proration: 'PRORATE',
+          allow_negative: false, negative_floor_minutes: 0,
+          max_balance_minutes: null, carryover_cap_minutes: null,
+          expires_at_period_end: false, tenure_transition: 'NEXT_PERIOD',
+          rules: [{
+            id: 'rule_1', method: 'TIME', amount: '20', unit: 'DAY',
+            frequency: 'YEARLY', accrues_at: 'START_OF_PERIOD',
+            per_minutes_worked: null, min_tenure_months: 0,
+          }],
+        },
+      }
       const body = path.endsWith('/employees')
         ? [
-            { id: 'adm_lindsey', name: 'Lindsey', is_admin: true },
-            { id: 'emp_ada', name: 'Ada', is_admin: false },
+            { id: 'adm_lindsey', name: 'Lindsey', employment_type: 'FULL_TIME', work_minutes_per_day: 480, is_admin: true },
+            { id: 'emp_ada', name: 'Ada', employment_type: 'FULL_TIME', work_minutes_per_day: 480, is_admin: false },
           ]
         : path.endsWith('/dev/state')
           ? { today: '2026-03-16' }
+          : path.includes('/holidays?year=')
+            ? [{ id: 'hol_1', date: '2026-01-01', name: "New Year's Day", observed: false }]
           : path.endsWith('/categories')
-            ? [{ id: 'cat_vacation', name: 'Vacation', icon: null }]
-          : path.endsWith('/policies')
+            ? [
+                { id: 'cat_vacation', name: 'Vacation', icon: null },
+                { id: 'cat_sick', name: 'Sick leave', icon: null },
+                { id: 'cat_maternity', name: 'Maternity leave', icon: null },
+                { id: 'cat_other', name: 'Other', icon: null },
+              ]
+          : path.endsWith('/groups')
             ? [{
-                id: 'pol_vacation', name: 'Vacation', category_id: 'cat_vacation',
-                category_name: 'Vacation', created_by: 'adm_lindsey', version_count: 1,
-                current_version: {
-                  id: 'ver_1', version_no: 1, effective_from: '2026-01-01',
-                  kind: 'ACCRUAL', created_by: 'adm_lindsey', change_reason: 'Initial',
-                  created_at: '2026-01-01T00:00:00Z', new_hire_proration: 'PRORATE',
-                  allow_negative: false, negative_floor_minutes: 0,
-                  max_balance_minutes: null, carryover_cap_minutes: null,
-                  expires_at_period_end: false, tenure_transition: 'NEXT_PERIOD',
-                  rules: [{
-                    id: 'rule_1', method: 'TIME', amount: '20', unit: 'DAY',
-                    frequency: 'YEARLY', accrues_at: 'START_OF_PERIOD',
-                    per_minutes_worked: null, min_tenure_months: 0,
-                  }],
-                },
+                id: 'grp_full_time', name: 'Full-time employees',
+                members: [{ employee_id: 'emp_ada', employee_name: 'Ada', employment_type: 'FULL_TIME' }],
+              }, {
+                id: 'grp_part_time', name: 'Part-time employees', members: [],
+              }]
+          : path.endsWith('/policies')
+            ? init?.method === 'POST' ? policy : [policy]
+          : path.includes('/balances?')
+            ? [{
+                category_id: 'cat_vacation', category_name: 'Vacation', has_policy: true,
+                policy_id: 'pol_vacation', policy_name: 'Vacation', is_unlimited: false,
+                balance_minutes: 6240, pending_hold_minutes: 0, available_minutes: 6240,
+                day_minutes: 480,
               }]
           : path.endsWith('/requests')
             ? [{
                 id: 'req_1', employee_id: 'emp_ada', employee_name: 'Ada',
                 category_id: 'cat_vacation', reason: 'Trip', status: 'PENDING',
                 start_date: '2026-06-01', end_date: '2026-06-02',
-                total_minutes: 960, events: [], days: [],
+                total_minutes: 960, events: [], days: [
+                  { date: '2026-06-01', minutes: 480 },
+                  { date: '2026-06-02', minutes: 480 },
+                ],
               }]
           : path.endsWith('/requests/preview')
             ? {
@@ -58,9 +86,9 @@ describe('application shell', () => {
     }))
   })
 
-  it('shows the time-off product heading', () => {
+  it('shows the employee-friendly product heading', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { name: 'Time-off policies' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Time away' })).toBeInTheDocument()
   })
 
   it('hides admin navigation when acting as an employee', async () => {
@@ -164,5 +192,78 @@ describe('application shell', () => {
     expect(await screen.findByText(/2 days 2 hours requested/)).toBeInTheDocument()
     expect(screen.getByText(/11 days 2 hours available/)).toBeInTheDocument()
     expect(screen.queryByText(/1080 minutes/)).not.toBeInTheDocument()
+  })
+
+  it('lets an employee describe an other leave type without using another balance', async () => {
+    render(<App />)
+    await screen.findByRole('button', { name: 'Audit' })
+    fireEvent.change(screen.getByLabelText('Acting as'), { target: { value: 'emp_ada' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'My requests' }))
+    fireEvent.change(screen.getByLabelText('Time-off category'), { target: { value: 'cat_other' } })
+
+    const customType = screen.getByLabelText('Custom time-off type')
+    expect(customType).toBeRequired()
+    expect(screen.getByRole('button', { name: 'Submit request' })).toBeDisabled()
+    fireEvent.change(customType, { target: { value: 'Bereavement leave' } })
+    expect(screen.getByText('Your approver will see this label')).toBeInTheDocument()
+  })
+
+  it('shows holidays and pending leave on the admin calendar', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }))
+
+    expect(screen.getByRole('heading', { name: '2026 calendar' })).toBeInTheDocument()
+    expect(screen.getAllByText("New Year's Day").length).toBeGreaterThan(1)
+    expect(screen.getAllByTitle('Ada · pending')[0]).toHaveClass('event-pending')
+  })
+
+  it('shows employees the plain-language rules behind their balance', async () => {
+    render(<App />)
+    await screen.findByRole('button', { name: 'Audit' })
+    fireEvent.change(screen.getByLabelText('Acting as'), { target: { value: 'emp_ada' } })
+
+    fireEvent.click(await screen.findByText('How this leave works'))
+    expect(screen.getByText('20 days added each year')).toBeInTheDocument()
+    expect(screen.getByText('• Balance cannot go below zero')).toBeInTheDocument()
+  })
+
+  it('lets admins create custom groups and assign their members', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'People groups' }))
+    const builder = screen.getByRole('heading', { name: 'Create a group' }).closest('form')!
+    fireEvent.change(within(builder).getByLabelText('Group name'), {
+      target: { value: 'Seasonal employees' },
+    })
+    fireEvent.click(within(builder).getByRole('checkbox', { name: /Ada/ }))
+    fireEvent.click(within(builder).getByRole('button', { name: 'Create group' }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([path, request]) =>
+        path === '/api/groups' && request?.method === 'POST')
+      expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+        name: 'Seasonal employees', employee_ids: ['emp_ada'],
+      })
+    })
+  })
+
+  it('targets a new policy to multiple employee groups', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
+    fireEvent.change(screen.getByLabelText('Policy name'), {
+      target: { value: 'Flexible vacation' },
+    })
+    fireEvent.click(screen.getByLabelText('All employees'))
+    fireEvent.click(screen.getByText('Full-time employees'))
+    fireEvent.click(screen.getByText('Part-time employees'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create policy' }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([path, request]) =>
+        path === '/api/policies' && request?.method === 'POST')
+      expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
+        all_employees: false,
+        group_ids: ['grp_full_time', 'grp_part_time'],
+      })
+    })
   })
 })

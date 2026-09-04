@@ -35,6 +35,7 @@ def test_seed_creates_one_coherent_idempotent_demo_story(session):
     assert alan_rows["Vacation"]["balance_minutes"] == 15 * 360
     assert ada_rows["Maternity leave"]["has_policy"] is False
     assert ada_rows["Sick leave"]["has_policy"] is False
+    assert ada_rows["Other"]["is_unlimited"] is True
 
 
 def test_demo_clock_and_job_history_are_admin_only(session):
@@ -69,7 +70,9 @@ def test_ledger_can_be_filtered_to_the_selected_policy(session):
         balances = client.get(
             f"/api/employees/emp_ada/balances?on_date={date(2026, 3, 16)}"
         ).json()
-        policy_id = next(row["policy_id"] for row in balances if row["has_policy"])
+        policy_id = next(
+            row["policy_id"] for row in balances if row["category_name"] == "Vacation"
+        )
         response = client.get(
             f"/api/employees/emp_ada/ledger?policy_id={policy_id}"
         )
