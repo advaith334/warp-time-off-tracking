@@ -18,16 +18,15 @@ import type {
 const inputClass = 'field-control'
 const buttonClass = 'button button-primary'
 const secondaryButtonClass = 'button button-secondary'
-type Tab = 'overview' | 'calendar' | 'requests' | 'policies' | 'people' | 'audit' | 'demo'
+type Tab = 'overview' | 'calendar' | 'requests' | 'policies' | 'people' | 'audit'
 
 const tabDescriptions: Record<Tab, string> = {
   overview: 'Balances and policy coverage at a glance',
   calendar: 'Holidays and team leave across the year',
   requests: 'Submit, review, and track time-off requests',
   policies: 'Define how each leave type is earned, assigned, and carried over',
-  people: 'Build reusable groups and keep policy eligibility in sync',
+  people: 'Reference group eligibility; Employee Service owns membership in production',
   audit: 'Follow every balance change back to its source',
-  demo: 'Move time forward and run background jobs',
 }
 
 const monthNames = [
@@ -144,8 +143,6 @@ export default function App() {
   const [auditEmployeeId, setAuditEmployeeId] = useState('emp_ada')
   const [tab, setTab] = useState<Tab>('overview')
   const [today, setToday] = useState('')
-  const [demoDate, setDemoDate] = useState('')
-  const [demoResult, setDemoResult] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -189,15 +186,14 @@ export default function App() {
   const selectedAuditEmployee = employees.find((employee) => employee.id === auditEmployeeId)
   const isOtherRequest = categories.find((category) => category.id === requestCategoryId)?.name === 'Other'
   const pendingRequests = requests.filter((request) => request.status === 'PENDING')
-  const tabs: Array<{ id: Tab; label: string }> = actor?.is_admin
+  const tabs: Array<{ id: Tab; label: string; qualifier?: string }> = actor?.is_admin
     ? [
-        { id: 'overview', label: 'Overview' },
+        { id: 'overview', label: 'All' },
         { id: 'calendar', label: 'Calendar' },
         { id: 'policies', label: 'Policies' },
-        { id: 'people', label: 'Groups' },
+        { id: 'people', label: 'Groups', qualifier: 'Employee Service' },
         { id: 'requests', label: 'Approvals' },
         { id: 'audit', label: 'Audit' },
-        { id: 'demo', label: 'Demo' },
       ]
     : [
         { id: 'overview', label: 'My leave' },
@@ -220,7 +216,6 @@ export default function App() {
       setGroups(groupRows)
       setHolidays(holidayRows)
       setToday(state.today)
-      setDemoDate(state.today)
       setEffectiveFrom((current) => current || state.today)
       setAuditEmployeeId((current) => current || people.find((person) => !person.is_admin)?.id || '')
       setCategoryId((current) => current || cats[0]?.id || '')
@@ -482,21 +477,6 @@ export default function App() {
     })
   }
 
-  async function setClock() {
-    await perform('clock', 'Demo date updated.', async () => {
-      const state = await api.post<{ today: string }>('/dev/clock', { current_date: demoDate })
-      setToday(state.today)
-      setDemoResult('Demo date moved to ' + formatDate(state.today) + '.')
-    })
-  }
-
-  async function runJob(kind: 'accruals' | 'rollover') {
-    await perform(kind, `${kind === 'accruals' ? 'Accrual' : 'Rollover'} job completed.`, async () => {
-      const run = await api.post<JobRun>('/dev/' + kind)
-      setDemoResult(`${run.kind.toLowerCase()} finished · ${run.entries_created} ledger entries created`)
-    })
-  }
-
   const runningLedger = useMemo(() => {
     return ledger.map((entry, index) => ({
       ...entry,
@@ -569,13 +549,12 @@ export default function App() {
         </div>
         <div className="nav-wrap">
           <nav aria-label="Product sections">
-            {tabs.map((item, index) => <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => {
+            {tabs.map((item) => <button key={item.id} type="button" aria-label={item.qualifier ? `${item.label} (${item.qualifier})` : item.label} aria-current={tab === item.id ? 'page' : undefined} onClick={() => {
               setTab(item.id)
               setError('')
               setSuccess('')
-            }}><span className="nav-index" aria-hidden="true">0{index + 1}</span>{item.label}{item.id === 'requests' && actor?.is_admin && pendingRequests.length > 0 && <span className="nav-count" aria-hidden="true">{pendingRequests.length}</span>}</button>)}
+            }}><span className="nav-label">{item.label}{item.qualifier && <small>({item.qualifier})</small>}</span>{item.id === 'requests' && actor?.is_admin && pendingRequests.length > 0 && <span className="nav-count" aria-hidden="true">{pendingRequests.length}</span>}</button>)}
           </nav>
-          {today && <span className="date-chip"><span aria-hidden="true">SIM</span>{formatDate(today)}</span>}
         </div>
       </header>
 
@@ -756,12 +735,6 @@ export default function App() {
           <div className="content-card job-card"><div className="card-heading"><div><p className="eyebrow">Operations</p><h3>Recent job runs</h3></div></div>{jobRuns.map((run) => <div className="job-row" key={run.id}><span className="job-icon">↻</span><div><strong>{run.kind.toLowerCase()} run</strong><p>{run.source_id}</p></div><StatusPill status={run.status} /><span>{run.entries_created} entries</span></div>)}{jobRuns.length === 0 && <p className="muted-copy">No background jobs have run yet.</p>}</div>
         </section>}
 
-        {actor?.is_admin && tab === 'demo' && <section className="demo-grid">
-          <article className="content-card demo-card"><span className="step-number">1</span><div><h3>Choose a simulated date</h3><p>Move the demo clock without changing your computer’s date.</p><Field label="Demo date"><input className={inputClass} aria-label="Demo date" type="date" value={demoDate} onChange={(event) => setDemoDate(event.target.value)} /></Field><button className={buttonClass} disabled={busyAction === 'clock'} onClick={() => void setClock()}>{busyAction === 'clock' ? 'Updating…' : 'Set demo date'}</button></div></article>
-          <article className="content-card demo-card"><span className="step-number">2</span><div><h3>Run accruals</h3><p>Post every scheduled credit due through the selected date.</p><button className={buttonClass} disabled={busyAction === 'accruals'} onClick={() => void runJob('accruals')}>{busyAction === 'accruals' ? 'Running…' : 'Run accrual job'}</button></div></article>
-          <article className="content-card demo-card"><span className="step-number">3</span><div><h3>Run year-end rollover</h3><p>Apply carryover caps or expiry rules for completed periods.</p><button className={secondaryButtonClass} disabled={busyAction === 'rollover'} onClick={() => void runJob('rollover')}>{busyAction === 'rollover' ? 'Running…' : 'Run rollover job'}</button></div></article>
-          {demoResult && <div className="demo-result"><span>✓</span><p>{demoResult}</p></div>}
-        </section>}
       </main>
     </div>
   )

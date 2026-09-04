@@ -91,6 +91,18 @@ describe('application shell', () => {
     expect(screen.getByRole('heading', { name: 'Time away' })).toBeInTheDocument()
   })
 
+  it('keeps the admin navigation focused and labels the external group boundary', async () => {
+    render(<App />)
+    const navigation = await screen.findByRole('navigation', { name: 'Product sections' })
+
+    expect(within(navigation).getAllByRole('button')).toHaveLength(6)
+    for (const name of ['All', 'Calendar', 'Policies', 'Groups (Employee Service)', 'Approvals', 'Audit']) {
+      expect(within(navigation).getByRole('button', { name })).toBeInTheDocument()
+    }
+    expect(within(navigation).queryByRole('button', { name: 'Demo' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Mar 16, 2026')).not.toBeInTheDocument()
+  })
+
   it('hides admin navigation when acting as an employee', async () => {
     render(<App />)
     await screen.findByRole('button', { name: 'Audit' })
@@ -229,7 +241,7 @@ describe('application shell', () => {
 
   it('lets admins create custom groups and assign one group per employee', async () => {
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Groups' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Groups (Employee Service)' }))
     const builder = screen.getByRole('heading', { name: 'Create a group' }).closest('form')!
     fireEvent.change(within(builder).getByLabelText('Group name'), {
       target: { value: 'Seasonal employees' },

@@ -9,13 +9,12 @@ flowchart TD
     Actor[Selected demo actor] --> Role{Admin?}
     Role -- no --> Self[My leave + plain-language rules]
     Role -- no --> Requests[My requests]
-    Role -- yes --> Overview[Company overview]
+    Role -- yes --> Overview[All / company overview]
     Role -- yes --> Calendar[Annual holiday + leave calendar]
-    Role -- yes --> Groups[Groups + employee roster]
+    Role -- yes --> Groups[Groups / Employee Service boundary]
     Role -- yes --> Policies[Policies + group audiences]
     Role -- yes --> Approvals[Approval queue]
     Role -- yes --> Audit[Ledger + job runs]
-    Role -- yes --> Demo[Clock + manual jobs]
 ```
 
 - Navigation removes irrelevant actions; the API independently repeats every access check.
@@ -29,11 +28,10 @@ flowchart TD
 | My leave | Category balances, available time, holds, earning and carryover rules | Start a request |
 | My requests | Own request history and events | Preview, partial-day or custom-type submit, cancel |
 | Calendar | Holidays plus approved and pending team leave | Jump from the event index to a month |
-| Groups | Employees and reusable company groups | Create/remove groups and place each employee in at most one group |
+| Groups (Employee Service) | Employees and reusable company groups | Reference UI for creating groups and placing each employee in at most one group; production membership comes from Employee Service |
 | Policies | Categories, policies, versions, groups, holidays | Create or version policies, target all employees or multiple groups, sync holidays |
 | Approvals | Company pending requests and events | Approve or deny |
 | Audit | Filtered ledger and job runs | Select employee/policy |
-| Demo | Simulated date and job results | Move clock, run accrual or rollover |
 
 ## Data flow
 
