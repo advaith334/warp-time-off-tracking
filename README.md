@@ -87,55 +87,69 @@ It runs both test suites, backend and frontend lint, TypeScript checking, a prod
 
 ## Scope and scaling
 
-The synchronous modular monolith is deliberate. At higher volume, the same idempotent services can run behind a queue and outbox, while materialized projections accelerate reads without replacing the ledger as source of truth.
+The synchronous modular monolith is deliberate. At higher volume, the same idempotent services can run in queue-backed workers without replacing the ledger as the source of truth.
 
 ### Target production architecture
 
-This is an evolutionary deployment design, not infrastructure currently shipped by this repository. The application remains a modular monolith while compute and background work scale independently.
+This is a right-sized production target, not infrastructure currently shipped by this repository. It keeps the modular monolith and adds only the components needed to scale API traffic and background jobs independently.
 
 ```mermaid
 flowchart TB
-    Client[Web client] --> Edge[CloudFront + WAF]
-    Edge --> Assets[(S3 static React assets)]
-    Edge --> LB[Application Load Balancer]
+    Client[Web client]
+    Frontend[Static React hosting]
+    LB[Application Load Balancer]
 
-    subgraph ECS[Autoscaled ECS / Fargate services]
+    subgraph ECS[ECS / Fargate]
         API[Stateless FastAPI tasks]
-        Relay[Transactional outbox relay]
-        Workers[Accrual + integration workers]
+        Workers[Background workers]
     end
 
+    Client -- loads app --> Frontend
+    Client -- API requests --> LB
     LB --> API
     API --> Proxy[RDS Proxy]
-    Workers --> Proxy
-    Relay -- polls outbox --> Proxy
     Proxy --> Primary[(RDS PostgreSQL Multi-AZ)]
-    Primary -. asynchronous replication .-> Replica[(Read replica)]
-    API -. reporting reads .-> Replica
 
-    Scheduler[EventBridge Scheduler] --> Queue[SQS + dead-letter queue]
-    Relay --> Queue
+    Scheduler[EventBridge Scheduler] --> Queue[SQS queue]
     Queue --> Workers
+    Workers --> Proxy
 
     API --> External[Employee / Company / Payroll / Holiday services]
     Workers --> External
-    API --> Telemetry[Logs / metrics / traces]
-    Workers --> Telemetry
-    Secrets[Secrets Manager] --> API
-    Secrets --> Workers
 ```
 
-| Layer | Scaling and reliability role |
+#### Expected workload
+
+The system should be read-heavy overall, with predictable write bursts. The ratio is an input to measurement—not an automatic reason to add replicas or shards.
+
+| Workload | Expected shape | Consistency and scaling decision |
+| --- | --- | --- |
+| Balance, policy, and request views | Frequent small reads | Use indexed primary reads first; balances need read-after-write consistency. |
+| Requests and approvals | Infrequent writes | Keep each state change and its ledger entries in one primary transaction. |
+| Scheduled and payroll accruals | Bursty batched writes | Queue by company or employee, bound concurrency, and preserve idempotency. |
+| Audit and reporting | Growing, scan-heavy reads | Paginate and index first; move stale-tolerant queries to a replica or projection later. |
+| Ledger history | Append-heavy over time | Partition the table when index, vacuum, or retention costs become material. |
+
+| Baseline component | Why it belongs |
 | --- | --- |
-| CDN, WAF, and load balancer | Cache static assets, protect the edge, and spread API traffic across healthy tasks. |
-| Stateless FastAPI tasks | Scale horizontally without session affinity; authorization remains company-scoped. |
-| RDS Proxy and Multi-AZ PostgreSQL | Pool bursty connections and preserve transactional ledger guarantees through failover. |
-| Transactional outbox, SQS, and workers | Move scheduled accrual and integration work off request paths without losing committed jobs. |
-| Read replica and projections | Isolate reporting traffic while PostgreSQL remains the accounting source of truth. |
-| Dead-letter queue and telemetry | Surface exhausted retries and connect each request, job, and ledger mutation for diagnosis. |
+| Static frontend hosting | Serves the small compiled React application without consuming API capacity. |
+| Load balancer and stateless API tasks | Spread requests across healthy instances and scale horizontally without session affinity. |
+| SQS and workers | Keep accrual runs and integration retries away from interactive request paths. |
+| RDS Proxy and Multi-AZ PostgreSQL | Control connection bursts while retaining transactional ledger guarantees and database failover. |
+
+Add the following only after traffic, reliability requirements, or measurements justify them:
+
+| Later addition | Trigger |
+| --- | --- |
+| CDN | Users are geographically distributed or static-asset latency becomes material. |
+| WAF | Internet exposure, compliance, or observed attacks require managed filtering beyond application controls. |
+| Read replica or projections | Stale-tolerant audit and reporting reads create sustained primary contention. |
+| Transactional outbox | A committed user action must atomically guarantee later asynchronous delivery. |
+| Cache | Measured repeated reads cannot be served efficiently by database indexes or projections. |
+| Database sharding | A partitioned, well-tuned primary still cannot sustain write volume; shard by company to retain transaction boundaries. |
 
 - Partition background work by company or employee and retain the existing idempotency keys for safe retries.
-- Add replicas, projections, and workers in response to measured load rather than splitting domain transactions prematurely.
+- Keep PostgreSQL as the accounting source of truth; do not split domain transactions into services prematurely.
 
 Production SSO, live payroll webhooks, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
 
