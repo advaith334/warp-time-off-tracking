@@ -1,10 +1,11 @@
+PYTHON ?= python3.13
 PY := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: install up down api web test migrate seed revision lint fmt
+.PHONY: install up down api web test migrate seed revision lint fmt openapi types contracts check
 
 install:            ## create venv + install backend and frontend deps
-	/opt/homebrew/bin/python3.13 -m venv .venv
+	$(PYTHON) -m venv .venv
 	$(PIP) install -q -r backend/requirements.txt
 	cd frontend && npm install
 
@@ -36,5 +37,18 @@ revision:           ## autogenerate a migration from model changes (M="message")
 lint:               ## report lint findings (config in ruff.toml)
 	.venv/bin/ruff check .
 
-fmt:               ## apply the lint fixes that are safe to apply
+fmt:                ## apply the lint fixes that are safe to apply
 	.venv/bin/ruff check . --fix
+
+openapi:            ## regenerate the committed API contract
+	cd backend && ../.venv/bin/python scripts/dump_openapi.py
+
+types: openapi      ## regenerate frontend types from OpenAPI
+	cd frontend && npm run gen:api --silent
+
+contracts: types    ## regenerate every committed contract artifact
+
+check: test lint contracts  ## run the complete local quality gate
+	cd frontend && npm run lint --silent
+	cd frontend && npm run typecheck --silent
+	cd frontend && npm run build --silent

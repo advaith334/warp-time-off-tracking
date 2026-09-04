@@ -1,0 +1,3005 @@
+{
+  "components": {
+    "schemas": {
+      "AccrualMethod": {
+        "enum": [
+          "TIME",
+          "HOURS_WORKED"
+        ],
+        "title": "AccrualMethod",
+        "type": "string"
+      },
+      "AccrualRuleIn": {
+        "properties": {
+          "accrues_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccruesAt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Schedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "$ref": "#/components/schemas/AccrualMethod"
+          },
+          "min_tenure_months": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Min Tenure Months",
+            "type": "integer"
+          },
+          "per_minutes_worked": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Minutes Worked"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/RateUnit"
+          }
+        },
+        "required": [
+          "method",
+          "amount",
+          "unit"
+        ],
+        "title": "AccrualRuleIn",
+        "type": "object"
+      },
+      "AccrualRuleOut": {
+        "properties": {
+          "accrues_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccruesAt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Schedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "$ref": "#/components/schemas/AccrualMethod"
+          },
+          "min_tenure_months": {
+            "title": "Min Tenure Months",
+            "type": "integer"
+          },
+          "per_minutes_worked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Minutes Worked"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/RateUnit"
+          }
+        },
+        "required": [
+          "id",
+          "method",
+          "amount",
+          "unit",
+          "frequency",
+          "accrues_at",
+          "per_minutes_worked",
+          "min_tenure_months"
+        ],
+        "title": "AccrualRuleOut",
+        "type": "object"
+      },
+      "AccruesAt": {
+        "enum": [
+          "START_OF_PERIOD",
+          "END_OF_PERIOD"
+        ],
+        "title": "AccruesAt",
+        "type": "string"
+      },
+      "AssignIn": {
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "employee_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Employee Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "employee_ids",
+          "effective_from"
+        ],
+        "title": "AssignIn",
+        "type": "object"
+      },
+      "AssignmentOut": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "employee_id": {
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "employee_name": {
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_name": {
+            "title": "Policy Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "employee_id",
+          "employee_name",
+          "policy_id",
+          "policy_name",
+          "category_id",
+          "effective_from",
+          "effective_to",
+          "created_by"
+        ],
+        "title": "AssignmentOut",
+        "type": "object"
+      },
+      "BalanceOut": {
+        "properties": {
+          "available_minutes": {
+            "title": "Available Minutes",
+            "type": "integer"
+          },
+          "balance_minutes": {
+            "title": "Balance Minutes",
+            "type": "integer"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "day_minutes": {
+            "title": "Day Minutes",
+            "type": "integer"
+          },
+          "has_policy": {
+            "title": "Has Policy",
+            "type": "boolean"
+          },
+          "is_unlimited": {
+            "title": "Is Unlimited",
+            "type": "boolean"
+          },
+          "pending_hold_minutes": {
+            "title": "Pending Hold Minutes",
+            "type": "integer"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id"
+          },
+          "policy_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Name"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "has_policy",
+          "policy_id",
+          "policy_name",
+          "is_unlimited",
+          "balance_minutes",
+          "pending_hold_minutes",
+          "available_minutes",
+          "day_minutes"
+        ],
+        "title": "BalanceOut",
+        "type": "object"
+      },
+      "CategoryCreateIn": {
+        "properties": {
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryCreateIn",
+        "type": "object"
+      },
+      "CategoryOut": {
+        "properties": {
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon"
+        ],
+        "title": "CategoryOut",
+        "type": "object"
+      },
+      "ClockIn": {
+        "properties": {
+          "current_date": {
+            "format": "date",
+            "title": "Current Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_date"
+        ],
+        "title": "ClockIn",
+        "type": "object"
+      },
+      "DecisionIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "DecisionIn",
+        "type": "object"
+      },
+      "EmployeeOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "employment_type": {
+            "title": "Employment Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_admin": {
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "work_minutes_per_day": {
+            "title": "Work Minutes Per Day",
+            "type": "integer"
+          },
+          "work_state": {
+            "title": "Work State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "employment_type",
+          "start_date",
+          "work_minutes_per_day",
+          "work_state",
+          "is_admin"
+        ],
+        "title": "EmployeeOut",
+        "type": "object"
+      },
+      "EndAssignmentIn": {
+        "properties": {
+          "effective_to": {
+            "format": "date",
+            "title": "Effective To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "effective_to"
+        ],
+        "title": "EndAssignmentIn",
+        "type": "object"
+      },
+      "EntryType": {
+        "enum": [
+          "ACCRUAL",
+          "FORFEITURE",
+          "CARRYOVER",
+          "EXPIRATION",
+          "REQUEST_DEBIT",
+          "REQUEST_REVERSAL"
+        ],
+        "title": "EntryType",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HolidayIn": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "observed": {
+            "default": false,
+            "title": "Observed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "name"
+        ],
+        "title": "HolidayIn",
+        "type": "object"
+      },
+      "HolidayOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed": {
+            "title": "Observed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "name",
+          "observed"
+        ],
+        "title": "HolidayOut",
+        "type": "object"
+      },
+      "JobKind": {
+        "enum": [
+          "SCHEDULED",
+          "PAYROLL",
+          "ROLLOVER"
+        ],
+        "title": "JobKind",
+        "type": "string"
+      },
+      "JobRunOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entries_created": {
+            "title": "Entries Created",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKind"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_id",
+          "status",
+          "entries_created",
+          "error",
+          "created_at"
+        ],
+        "title": "JobRunOut",
+        "type": "object"
+      },
+      "LedgerEntryOut": {
+        "properties": {
+          "amount_minutes": {
+            "title": "Amount Minutes",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "entry_type": {
+            "$ref": "#/components/schemas/EntryType"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          }
+        },
+        "required": [
+          "id",
+          "entry_type",
+          "amount_minutes",
+          "effective_date",
+          "source_type",
+          "source_id",
+          "note",
+          "created_at"
+        ],
+        "title": "LedgerEntryOut",
+        "type": "object"
+      },
+      "NewHireProration": {
+        "enum": [
+          "PRORATE",
+          "FULL",
+          "NONE"
+        ],
+        "title": "NewHireProration",
+        "type": "string"
+      },
+      "PayrollAccrualIn": {
+        "properties": {
+          "minutes_by_employee": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Minutes By Employee",
+            "type": "object"
+          },
+          "payroll_run_id": {
+            "minLength": 1,
+            "title": "Payroll Run Id",
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payroll_run_id",
+          "period_end",
+          "minutes_by_employee"
+        ],
+        "title": "PayrollAccrualIn",
+        "type": "object"
+      },
+      "PolicyCreateIn": {
+        "properties": {
+          "allow_negative": {
+            "default": false,
+            "title": "Allow Negative",
+            "type": "boolean"
+          },
+          "carryover_cap_minutes": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carryover Cap Minutes"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "change_reason": {
+            "default": "Policy created",
+            "title": "Change Reason",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "expires_at_period_end": {
+            "default": false,
+            "title": "Expires At Period End",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PolicyKind"
+          },
+          "max_balance_minutes": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Balance Minutes"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "negative_floor_minutes": {
+            "default": 0,
+            "maximum": 0.0,
+            "title": "Negative Floor Minutes",
+            "type": "integer"
+          },
+          "new_hire_proration": {
+            "$ref": "#/components/schemas/NewHireProration",
+            "default": "PRORATE"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/AccrualRuleIn"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "tenure_transition": {
+            "$ref": "#/components/schemas/TenureTransition",
+            "default": "NEXT_PERIOD"
+          }
+        },
+        "required": [
+          "name",
+          "category_id",
+          "effective_from",
+          "kind"
+        ],
+        "title": "PolicyCreateIn",
+        "type": "object"
+      },
+      "PolicyKind": {
+        "enum": [
+          "UNLIMITED",
+          "ACCRUAL"
+        ],
+        "title": "PolicyKind",
+        "type": "string"
+      },
+      "PolicyOut": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "current_version": {
+            "$ref": "#/components/schemas/PolicyVersionOut"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version_count": {
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category_id",
+          "category_name",
+          "created_by",
+          "current_version",
+          "version_count"
+        ],
+        "title": "PolicyOut",
+        "type": "object"
+      },
+      "PolicyUpdateIn": {
+        "properties": {
+          "allow_negative": {
+            "default": false,
+            "title": "Allow Negative",
+            "type": "boolean"
+          },
+          "carryover_cap_minutes": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carryover Cap Minutes"
+          },
+          "change_reason": {
+            "minLength": 1,
+            "title": "Change Reason",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "expires_at_period_end": {
+            "default": false,
+            "title": "Expires At Period End",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PolicyKind"
+          },
+          "max_balance_minutes": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Balance Minutes"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "negative_floor_minutes": {
+            "default": 0,
+            "maximum": 0.0,
+            "title": "Negative Floor Minutes",
+            "type": "integer"
+          },
+          "new_hire_proration": {
+            "$ref": "#/components/schemas/NewHireProration",
+            "default": "PRORATE"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/AccrualRuleIn"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "tenure_transition": {
+            "$ref": "#/components/schemas/TenureTransition",
+            "default": "NEXT_PERIOD"
+          }
+        },
+        "required": [
+          "effective_from",
+          "kind",
+          "change_reason"
+        ],
+        "title": "PolicyUpdateIn",
+        "type": "object"
+      },
+      "PolicyVersionOut": {
+        "properties": {
+          "allow_negative": {
+            "title": "Allow Negative",
+            "type": "boolean"
+          },
+          "carryover_cap_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carryover Cap Minutes"
+          },
+          "change_reason": {
+            "title": "Change Reason",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "expires_at_period_end": {
+            "title": "Expires At Period End",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PolicyKind"
+          },
+          "max_balance_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Balance Minutes"
+          },
+          "negative_floor_minutes": {
+            "title": "Negative Floor Minutes",
+            "type": "integer"
+          },
+          "new_hire_proration": {
+            "$ref": "#/components/schemas/NewHireProration"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/AccrualRuleOut"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "tenure_transition": {
+            "$ref": "#/components/schemas/TenureTransition"
+          },
+          "version_no": {
+            "title": "Version No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version_no",
+          "effective_from",
+          "kind",
+          "created_by",
+          "change_reason",
+          "new_hire_proration",
+          "allow_negative",
+          "negative_floor_minutes",
+          "max_balance_minutes",
+          "carryover_cap_minutes",
+          "expires_at_period_end",
+          "tenure_transition",
+          "created_at",
+          "rules"
+        ],
+        "title": "PolicyVersionOut",
+        "type": "object"
+      },
+      "RateUnit": {
+        "enum": [
+          "DAY",
+          "HOUR",
+          "MINUTE"
+        ],
+        "title": "RateUnit",
+        "type": "string"
+      },
+      "RequestDayOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "minutes"
+        ],
+        "title": "RequestDayOut",
+        "type": "object"
+      },
+      "RequestEventOut": {
+        "properties": {
+          "actor_id": {
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          }
+        },
+        "required": [
+          "from_status",
+          "to_status",
+          "actor_id",
+          "note",
+          "at"
+        ],
+        "title": "RequestEventOut",
+        "type": "object"
+      },
+      "RequestIn": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "employee_id": {
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "maximum": 23.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "maximum": 59.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "employee_id",
+          "category_id",
+          "reason",
+          "start_date",
+          "end_date"
+        ],
+        "title": "RequestIn",
+        "type": "object"
+      },
+      "RequestPreviewOut": {
+        "properties": {
+          "available_minutes": {
+            "title": "Available Minutes",
+            "type": "integer"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/RequestDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "total_minutes": {
+            "title": "Total Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_minutes",
+          "available_minutes",
+          "days"
+        ],
+        "title": "RequestPreviewOut",
+        "type": "object"
+      },
+      "RequestStatus": {
+        "enum": [
+          "PENDING",
+          "APPROVED",
+          "DENIED",
+          "CANCELLED"
+        ],
+        "title": "RequestStatus",
+        "type": "string"
+      },
+      "Schedule": {
+        "enum": [
+          "MONTHLY",
+          "YEARLY"
+        ],
+        "title": "Schedule",
+        "type": "string"
+      },
+      "SourceType": {
+        "enum": [
+          "SCHEDULED_ACCRUAL",
+          "PAYROLL_ACCRUAL",
+          "REQUEST",
+          "REQUEST_CANCELLATION",
+          "PERIOD_ROLLOVER"
+        ],
+        "title": "SourceType",
+        "type": "string"
+      },
+      "TenureTransition": {
+        "enum": [
+          "NEXT_PERIOD"
+        ],
+        "title": "TenureTransition",
+        "type": "string"
+      },
+      "TimeOffRequestOut": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/RequestDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "employee_id": {
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "employee_name": {
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RequestEventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_partial_day": {
+            "title": "Is Partial Day",
+            "type": "boolean"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "total_minutes": {
+            "title": "Total Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "employee_id",
+          "employee_name",
+          "category_id",
+          "policy_id",
+          "reason",
+          "status",
+          "start_date",
+          "end_date",
+          "total_minutes",
+          "is_partial_day",
+          "created_at",
+          "decided_by",
+          "decided_at",
+          "days",
+          "events"
+        ],
+        "title": "TimeOffRequestOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Employee time off tracking: policies, accrual, requests, balances, audit.",
+    "title": "Warp Time Off",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/accruals/payroll": {
+      "post": {
+        "operationId": "payroll_api_accruals_payroll_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayrollAccrualIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Payroll",
+        "tags": [
+          "accruals"
+        ]
+      }
+    },
+    "/api/accruals/rollover": {
+      "post": {
+        "operationId": "rollover_api_accruals_rollover_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollover",
+        "tags": [
+          "accruals"
+        ]
+      }
+    },
+    "/api/accruals/scheduled": {
+      "post": {
+        "operationId": "scheduled_api_accruals_scheduled_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "As Of",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scheduled",
+        "tags": [
+          "accruals"
+        ]
+      }
+    },
+    "/api/assignments/{assignment_id}/end": {
+      "post": {
+        "operationId": "end_assignment_api_assignments__assignment_id__end_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndAssignmentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Assignment",
+        "tags": [
+          "assignments"
+        ]
+      }
+    },
+    "/api/audit/job-runs": {
+      "get": {
+        "operationId": "job_runs_api_audit_job_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobRunOut"
+                  },
+                  "title": "Response Job Runs Api Audit Job Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Job Runs",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "operationId": "categories_api_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryOut"
+                  },
+                  "title": "Response Categories Api Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Categories",
+        "tags": [
+          "policies"
+        ]
+      },
+      "post": {
+        "operationId": "create_category_api_categories_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Category",
+        "tags": [
+          "policies"
+        ]
+      }
+    },
+    "/api/dev/accruals": {
+      "post": {
+        "operationId": "run_accruals_api_dev_accruals_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Accruals",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/dev/clock": {
+      "post": {
+        "operationId": "set_clock_api_dev_clock_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Clock",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/dev/rollover": {
+      "post": {
+        "operationId": "run_rollover_api_dev_rollover_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Rollover",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/dev/state": {
+      "get": {
+        "operationId": "state_api_dev_state_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "State",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "operationId": "list_employees_api_employees_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EmployeeOut"
+                  },
+                  "title": "Response List Employees Api Employees Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Employees",
+        "tags": [
+          "employees"
+        ]
+      }
+    },
+    "/api/employees/{employee_id}": {
+      "get": {
+        "operationId": "get_employee_api_employees__employee_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Employee",
+        "tags": [
+          "employees"
+        ]
+      }
+    },
+    "/api/employees/{employee_id}/assignments": {
+      "get": {
+        "operationId": "employee_assignments_api_employees__employee_id__assignments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssignmentOut"
+                  },
+                  "title": "Response Employee Assignments Api Employees  Employee Id  Assignments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Employee Assignments",
+        "tags": [
+          "assignments"
+        ]
+      }
+    },
+    "/api/employees/{employee_id}/balances": {
+      "get": {
+        "operationId": "balances_api_employees__employee_id__balances_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "on_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "On Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BalanceOut"
+                  },
+                  "title": "Response Balances Api Employees  Employee Id  Balances Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Balances",
+        "tags": [
+          "balances"
+        ]
+      }
+    },
+    "/api/employees/{employee_id}/ledger": {
+      "get": {
+        "operationId": "ledger_api_employees__employee_id__ledger_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "policy_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Policy Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerEntryOut"
+                  },
+                  "title": "Response Ledger Api Employees  Employee Id  Ledger Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ledger",
+        "tags": [
+          "balances"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Report whether the API can reach PostgreSQL.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/holidays": {
+      "get": {
+        "operationId": "list_holidays_api_holidays_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "title": "Year",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayOut"
+                  },
+                  "title": "Response List Holidays Api Holidays Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Holidays",
+        "tags": [
+          "holidays"
+        ]
+      },
+      "post": {
+        "operationId": "add_holiday_api_holidays_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Holiday",
+        "tags": [
+          "holidays"
+        ]
+      }
+    },
+    "/api/holidays/sync": {
+      "post": {
+        "operationId": "sync_holidays_api_holidays_sync_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayOut"
+                  },
+                  "title": "Response Sync Holidays Api Holidays Sync Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Holidays",
+        "tags": [
+          "holidays"
+        ]
+      }
+    },
+    "/api/policies": {
+      "get": {
+        "operationId": "policies_api_policies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyOut"
+                  },
+                  "title": "Response Policies Api Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Policies",
+        "tags": [
+          "policies"
+        ]
+      },
+      "post": {
+        "operationId": "create_policy_api_policies_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Policy",
+        "tags": [
+          "policies"
+        ]
+      }
+    },
+    "/api/policies/{policy_id}": {
+      "put": {
+        "operationId": "update_policy_api_policies__policy_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyVersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Policy",
+        "tags": [
+          "policies"
+        ]
+      }
+    },
+    "/api/policies/{policy_id}/assignments": {
+      "get": {
+        "operationId": "list_assignments_api_policies__policy_id__assignments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssignmentOut"
+                  },
+                  "title": "Response List Assignments Api Policies  Policy Id  Assignments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Assignments",
+        "tags": [
+          "assignments"
+        ]
+      },
+      "post": {
+        "operationId": "assign_api_policies__policy_id__assignments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssignmentOut"
+                  },
+                  "title": "Response Assign Api Policies  Policy Id  Assignments Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assign",
+        "tags": [
+          "assignments"
+        ]
+      }
+    },
+    "/api/policies/{policy_id}/versions": {
+      "get": {
+        "operationId": "versions_api_policies__policy_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyVersionOut"
+                  },
+                  "title": "Response Versions Api Policies  Policy Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Versions",
+        "tags": [
+          "policies"
+        ]
+      }
+    },
+    "/api/requests": {
+      "get": {
+        "operationId": "list_requests_api_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "employee_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Employee Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RequestStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TimeOffRequestOut"
+                  },
+                  "title": "Response List Requests Api Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Requests",
+        "tags": [
+          "requests"
+        ]
+      },
+      "post": {
+        "operationId": "submit_api_requests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/requests/preview": {
+      "post": {
+        "operationId": "preview_api_requests_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/requests/{request_id}/approve": {
+      "post": {
+        "operationId": "approve_api_requests__request_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/requests/{request_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_requests__request_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/requests/{request_id}/deny": {
+      "post": {
+        "operationId": "deny_api_requests__request_id__deny_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deny",
+        "tags": [
+          "requests"
+        ]
+      }
+    }
+  }
+}
