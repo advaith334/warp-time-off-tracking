@@ -50,6 +50,8 @@ class PolicyVersionOut(Out):
     created_by: str
     change_reason: str
     new_hire_proration: enums.NewHireProration
+    allow_negative: bool
+    negative_floor_minutes: int
     created_at: datetime
     rules: list[AccrualRuleOut]
 
@@ -98,6 +100,8 @@ class BalanceOut(Out):
     policy_name: str | None
     is_unlimited: bool
     balance_minutes: int
+    pending_hold_minutes: int
+    available_minutes: int
     day_minutes: int
 
 
@@ -120,3 +124,55 @@ class JobRunOut(Out):
     entries_created: int
     error: str | None
     created_at: datetime
+
+
+class RequestDayOut(Out):
+    date: date
+    minutes: int
+
+
+class RequestEventOut(Out):
+    from_status: enums.RequestStatus | None
+    to_status: enums.RequestStatus
+    actor_id: str
+    note: str | None
+    at: datetime
+
+
+class RequestPreviewOut(Out):
+    total_minutes: int
+    available_minutes: int
+    days: list[RequestDayOut]
+
+
+class TimeOffRequestOut(Out):
+    id: str
+    employee_id: str
+    employee_name: str
+    category_id: str
+    policy_id: str
+    reason: str
+    status: enums.RequestStatus
+    start_date: date
+    end_date: date
+    total_minutes: int
+    is_partial_day: bool
+    created_at: datetime
+    decided_by: str | None
+    decided_at: datetime | None
+    days: list[RequestDayOut]
+    events: list[RequestEventOut]
+
+    @classmethod
+    def of(cls, request, employee_name: str):
+        return cls.model_validate(
+            {
+                **{
+                    column.name: getattr(request, column.name)
+                    for column in request.__table__.columns
+                },
+                "employee_name": employee_name,
+                "days": request.days,
+                "events": request.events,
+            }
+        )

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import enums
-from app.models import TimeOffCategory
+from app.models import BalanceSnapshot, TimeOffCategory
 from app.services import assignment_service, ledger_service, policy_service
 
 
@@ -33,12 +33,19 @@ def list_balances(session: Session, *, company_id: str, employee_id: str, on_dat
                 "policy_name": None,
                 "is_unlimited": False,
                 "balance_minutes": 0,
+                "pending_hold_minutes": 0,
+                "available_minutes": 0,
                 "day_minutes": 480,
             })
             continue
         version = policy_service.version_effective_on(
             session, assignment.policy_id, on_date
         )
+        balance = ledger_service.balance(
+            session, employee_id=employee_id, policy_id=assignment.policy_id
+        )
+        snapshot = session.get(BalanceSnapshot, (employee_id, assignment.policy_id))
+        pending = snapshot.pending_hold_minutes if snapshot else 0
         rows.append({
             "category_id": category.id,
             "category_name": category.name,
@@ -46,9 +53,9 @@ def list_balances(session: Session, *, company_id: str, employee_id: str, on_dat
             "policy_id": assignment.policy_id,
             "policy_name": assignment.policy.name,
             "is_unlimited": version.kind == enums.PolicyKind.UNLIMITED,
-            "balance_minutes": ledger_service.balance(
-                session, employee_id=employee_id, policy_id=assignment.policy_id
-            ),
+            "balance_minutes": balance,
+            "pending_hold_minutes": pending,
+            "available_minutes": balance - pending,
             "day_minutes": 480,
         })
     return rows

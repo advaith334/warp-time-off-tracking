@@ -21,6 +21,11 @@ def _validate(kind: enums.PolicyKind, rules: list[dict]) -> None:
         raise PolicyError(str(exc)) from exc
 
 
+def _validate_balance_settings(allow_negative: bool, floor: int) -> None:
+    if allow_negative and floor >= 0:
+        raise PolicyError("A negative-balance policy needs a floor below zero.")
+
+
 def _add_version(
     session: Session,
     *,
@@ -32,6 +37,8 @@ def _add_version(
     actor_id: str,
     change_reason: str,
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
+    allow_negative: bool = False,
+    negative_floor_minutes: int = 0,
 ) -> PolicyVersion:
     version = PolicyVersion(
         policy_id=policy_id,
@@ -41,6 +48,8 @@ def _add_version(
         created_by=actor_id,
         change_reason=change_reason,
         new_hire_proration=new_hire_proration,
+        allow_negative=allow_negative,
+        negative_floor_minutes=negative_floor_minutes,
     )
     session.add(version)
     session.flush()
@@ -64,8 +73,11 @@ def create(
     rules: list[dict],
     change_reason: str,
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
+    allow_negative: bool = False,
+    negative_floor_minutes: int = 0,
 ) -> Policy:
     _validate(kind, rules)
+    _validate_balance_settings(allow_negative, negative_floor_minutes)
     category = session.get(TimeOffCategory, category_id)
     if category is None or category.company_id != company_id:
         raise PolicyError("Unknown time-off category.")
@@ -88,6 +100,8 @@ def create(
         actor_id=actor_id,
         change_reason=change_reason,
         new_hire_proration=new_hire_proration,
+        allow_negative=allow_negative,
+        negative_floor_minutes=negative_floor_minutes,
     )
     session.refresh(policy)
     return policy
@@ -104,8 +118,11 @@ def update(
     change_reason: str,
     name: str | None,
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
+    allow_negative: bool = False,
+    negative_floor_minutes: int = 0,
 ) -> PolicyVersion:
     _validate(kind, rules)
+    _validate_balance_settings(allow_negative, negative_floor_minutes)
     current = latest_version(session, policy.id)
     if current is None:
         raise PolicyError("Policy has no version.")
@@ -125,6 +142,8 @@ def update(
         actor_id=actor_id,
         change_reason=change_reason,
         new_hire_proration=new_hire_proration,
+        allow_negative=allow_negative,
+        negative_floor_minutes=negative_floor_minutes,
     )
 
 

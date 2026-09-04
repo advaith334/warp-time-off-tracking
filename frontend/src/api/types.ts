@@ -43,3 +43,15 @@ export type Balance = {
   balance_minutes: number
   day_minutes: number
 }
+
+export type TimeOffRequest = {
+  id: string
+  employee_id: string
+  employee_name: string
+  category_id: string
+  reason: string
+  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED'
+  start_date: string
+  end_date: string
+  total_minutes: number
+}

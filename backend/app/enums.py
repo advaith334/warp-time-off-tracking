@@ -37,13 +37,24 @@ class NewHireProration(StrEnum):
 
 class EntryType(StrEnum):
     ACCRUAL = "ACCRUAL"
+    REQUEST_DEBIT = "REQUEST_DEBIT"
+    REQUEST_REVERSAL = "REQUEST_REVERSAL"
 
 
 class SourceType(StrEnum):
     SCHEDULED_ACCRUAL = "SCHEDULED_ACCRUAL"
     PAYROLL_ACCRUAL = "PAYROLL_ACCRUAL"
+    REQUEST = "REQUEST"
+    REQUEST_CANCELLATION = "REQUEST_CANCELLATION"
 
 
 class JobKind(StrEnum):
     SCHEDULED = "SCHEDULED"
     PAYROLL = "PAYROLL"
+
+
+class RequestStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    CANCELLED = "CANCELLED"
