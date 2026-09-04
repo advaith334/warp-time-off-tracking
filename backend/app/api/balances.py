@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -33,14 +33,12 @@ def balances(
 @router.get("/ledger", response_model=list[LedgerEntryOut])
 def ledger(
     employee_id: str,
+    policy_id: str | None = Query(default=None),
     session: Session = Depends(get_session),
     actor: Employee = Depends(get_actor),
 ):
     require_self_or_admin(employee_id, actor)
-    return list(
-        session.scalars(
-            select(LedgerEntry)
-            .where(LedgerEntry.employee_id == employee_id)
-            .order_by(LedgerEntry.effective_date, LedgerEntry.created_at)
-        )
-    )
+    query = select(LedgerEntry).where(LedgerEntry.employee_id == employee_id)
+    if policy_id:
+        query = query.where(LedgerEntry.policy_id == policy_id)
+    return list(session.scalars(query.order_by(LedgerEntry.effective_date, LedgerEntry.created_at)))

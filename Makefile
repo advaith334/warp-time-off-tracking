@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 PIP := .venv/bin/pip
 
-.PHONY: install up down api web test migrate revision lint fmt
+.PHONY: install up down api web test migrate seed revision lint fmt
 
 install:            ## create venv + install backend and frontend deps
 	/opt/homebrew/bin/python3.13 -m venv .venv
@@ -26,6 +26,9 @@ test:               ## run both test suites
 
 migrate:            ## bring the database up to the latest migration
 	cd backend && ../.venv/bin/alembic upgrade head
+
+seed:               ## load one deterministic reviewer walkthrough
+	cd backend && ../.venv/bin/python -m app.seed
 
 revision:           ## autogenerate a migration from model changes (M="message")
 	cd backend && ../.venv/bin/alembic revision --autogenerate -m "$(M)"

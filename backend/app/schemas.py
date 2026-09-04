@@ -98,3 +98,7 @@ class HolidayIn(BaseModel):
     date: date
     name: str = Field(min_length=1, max_length=128)
     observed: bool = False
+
+
+class ClockIn(BaseModel):
+    current_date: date

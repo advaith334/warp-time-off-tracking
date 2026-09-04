@@ -19,6 +19,20 @@ export type Rule = {
   min_tenure_months: number
 }
 
+export type PolicyVersion = {
+  id: string
+  version_no: number
+  effective_from: string
+  kind: 'UNLIMITED' | 'ACCRUAL'
+  created_by: string
+  change_reason: string
+  max_balance_minutes: number | null
+  carryover_cap_minutes: number | null
+  expires_at_period_end: boolean
+  tenure_transition: 'NEXT_PERIOD'
+  rules: Rule[]
+}
+
 export type Policy = {
   id: string
   name: string
@@ -26,16 +40,7 @@ export type Policy = {
   category_name: string
   created_by: string
   version_count: number
-  current_version: {
-    version_no: number
-    effective_from: string
-    kind: 'UNLIMITED' | 'ACCRUAL'
-    max_balance_minutes: number | null
-    carryover_cap_minutes: number | null
-    expires_at_period_end: boolean
-    tenure_transition: 'NEXT_PERIOD'
-    rules: Rule[]
-  }
+  current_version: PolicyVersion
 }
 
 export type Holiday = {
@@ -53,7 +58,30 @@ export type Balance = {
   policy_name: string | null
   is_unlimited: boolean
   balance_minutes: number
+  pending_hold_minutes: number
+  available_minutes: number
   day_minutes: number
+}
+
+export type LedgerEntry = {
+  id: string
+  entry_type: string
+  amount_minutes: number
+  effective_date: string
+  source_type: string
+  source_id: string
+  note: string | null
+  created_at: string
+}
+
+export type JobRun = {
+  id: string
+  kind: 'SCHEDULED' | 'PAYROLL' | 'ROLLOVER'
+  source_id: string
+  status: string
+  entries_created: number
+  error: string | null
+  created_at: string
 }
 
 export type TimeOffRequest = {
@@ -66,4 +94,11 @@ export type TimeOffRequest = {
   start_date: string
   end_date: string
   total_minutes: number
+  events: Array<{
+    from_status: string | null
+    to_status: string
+    actor_id: string
+    note: string | null
+    at: string
+  }>
 }

@@ -55,6 +55,7 @@ def run(session: Session, *, company_id: str, as_of: date) -> JobRun:
                 note=entry.note,
             )
     run = JobRun(
+        company_id=company_id,
         kind=enums.JobKind.ROLLOVER,
         source_id=period_end.isoformat(),
         status="SUCCESS",

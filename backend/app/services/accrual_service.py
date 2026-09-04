@@ -120,6 +120,7 @@ def run_scheduled(session: Session, *, company_id: str, as_of: date) -> JobRun:
                         ),
                     )
     run = JobRun(
+        company_id=company_id,
         kind=enums.JobKind.SCHEDULED,
         source_id=as_of.isoformat(),
         status="SUCCESS",
@@ -193,6 +194,7 @@ def on_payroll_processed(
                         note=f"{minutes_worked} minutes worked",
                     )
     run = JobRun(
+        company_id=company_id,
         kind=enums.JobKind.PAYROLL,
         source_id=payroll_run_id,
         status="SUCCESS",

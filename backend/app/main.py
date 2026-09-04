@@ -5,7 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api import accruals, assignments, balances, employees, holidays, policies, requests
+from app.api import (
+    accruals,
+    assignments,
+    audit,
+    balances,
+    dev,
+    employees,
+    holidays,
+    policies,
+    requests,
+)
 from app.config import settings
 from app.db import get_session
 from app.logging_config import RequestIdMiddleware
@@ -28,7 +38,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (employees, policies, assignments, balances, accruals, requests, holidays):
+for module in (
+    employees,
+    policies,
+    assignments,
+    balances,
+    accruals,
+    requests,
+    holidays,
+    audit,
+    dev,
+):
     app.include_router(module.router)
 
 
