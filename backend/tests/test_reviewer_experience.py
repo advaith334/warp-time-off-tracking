@@ -33,7 +33,8 @@ def test_seed_creates_one_coherent_idempotent_demo_story(session):
     alan_rows = {row["category_name"]: row for row in alan.json()}
     assert ada_rows["Vacation"]["balance_minutes"] == 15 * 480
     assert alan_rows["Vacation"]["balance_minutes"] == 15 * 360
-    assert ada_rows["Maternity"]["has_policy"] is False
+    assert ada_rows["Maternity leave"]["has_policy"] is False
+    assert ada_rows["Sick leave"]["has_policy"] is False
 
 
 def test_demo_clock_and_job_history_are_admin_only(session):
