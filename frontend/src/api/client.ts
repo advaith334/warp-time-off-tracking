@@ -2,8 +2,8 @@
  * Thin fetch wrapper.
  *
  * Identity travels in `X-Actor-Id`, set from the user switcher in the top bar.
- * There is no auth in this build (see decision I5 in the README) - but every
- * write the backend performs still records who asked for it.
+ * There is no production auth in this build, but every write still records who
+ * asked for it. See the README's API and security boundary for the replacement.
  */
 let actorId = 'adm_lindsey'
 

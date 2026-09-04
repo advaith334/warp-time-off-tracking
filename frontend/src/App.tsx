@@ -38,6 +38,9 @@ export default function App() {
   const [policyName, setPolicyName] = useState('')
   const [kind, setKind] = useState<'ACCRUAL' | 'UNLIMITED'>('ACCRUAL')
   const [amount, setAmount] = useState('20')
+  const [newHireProration, setNewHireProration] = useState<'PRORATE' | 'FULL' | 'NONE'>('PRORATE')
+  const [allowNegative, setAllowNegative] = useState(false)
+  const [negativeFloor, setNegativeFloor] = useState('-480')
   const [tenureMonths, setTenureMonths] = useState('')
   const [tenureAmount, setTenureAmount] = useState('')
   const [maxBalance, setMaxBalance] = useState('')
@@ -63,7 +66,6 @@ export default function App() {
       ]
 
   async function load() {
-    setLoading(true)
     try {
       const [people, cats, policyRows, state] = await Promise.all([
         api.get<Employee[]>('/employees'),
@@ -89,6 +91,8 @@ export default function App() {
     }
   }
 
+  // Initial API hydration is the external synchronization this effect owns.
+  // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [])
 
   useEffect(() => {
@@ -135,6 +139,9 @@ export default function App() {
     await api.post('/policies', {
       name: policyName, category_id: categoryId, effective_from: today, kind, rules,
       change_reason: 'Policy created',
+      new_hire_proration: newHireProration,
+      allow_negative: allowNegative,
+      negative_floor_minutes: allowNegative ? Number(negativeFloor) : 0,
       max_balance_minutes: maxBalance ? Number(maxBalance) : null,
       carryover_cap_minutes: carryoverCap ? Number(carryoverCap) : null,
       expires_at_period_end: expires, tenure_transition: 'NEXT_PERIOD',
@@ -186,8 +193,12 @@ export default function App() {
   }
 
   const runningLedger = useMemo(() => {
-    let total = 0
-    return ledger.map((entry) => ({ ...entry, running: (total += entry.amount_minutes) }))
+    return ledger.map((entry, index) => ({
+      ...entry,
+      running: ledger
+        .slice(0, index + 1)
+        .reduce((total, row) => total + row.amount_minutes, 0),
+    }))
   }, [ledger])
 
   return (
@@ -238,11 +249,14 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="ACCRUAL">Accrual</option><option value="UNLIMITED">Unlimited</option></select></div>
             {kind === 'ACCRUAL' && <div className="grid grid-cols-2 gap-2">
               <input className={inputClass} type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Days per year" placeholder="Days per year" />
+              <select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate new hires</option><option value="FULL">Full first period</option><option value="NONE">Start next period</option></select>
               <input className={inputClass} type="number" min="1" value={maxBalance} onChange={(event) => setMaxBalance(event.target.value)} aria-label="Maximum balance minutes" placeholder="Max balance minutes" />
               <input className={inputClass} type="number" min="0" value={carryoverCap} onChange={(event) => setCarryoverCap(event.target.value)} aria-label="Carryover cap minutes" placeholder="Carryover cap minutes" disabled={expires} />
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expires} onChange={(event) => setExpires(event.target.checked)} disabled={Boolean(carryoverCap)} /> Expire yearly</label>
               <input className={inputClass} type="number" min="1" value={tenureMonths} onChange={(event) => setTenureMonths(event.target.value)} aria-label="Tenure tier months" placeholder="Tier after months" />
               <input className={inputClass} type="number" min="1" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier days" placeholder="Tier days/year" />
+              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allowNegative} onChange={(event) => setAllowNegative(event.target.checked)} /> Allow negative balance</label>
+              <input className={inputClass} type="number" max="-1" value={negativeFloor} onChange={(event) => setNegativeFloor(event.target.value)} aria-label="Negative balance floor minutes" placeholder="Negative floor minutes" disabled={!allowNegative} required={allowNegative} />
             </div>}
             <button className={buttonClass} disabled={!categoryId}>Create policy</button>
           </form>

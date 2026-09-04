@@ -126,6 +126,44 @@ def test_observed_holiday_is_stored_and_a_request_does_not_charge_it(session):
     ]
 
 
+def test_holiday_changes_after_submission_do_not_reprice_frozen_request_days(session):
+    category, policy = _policy(session)
+    _credit(session, policy)
+    request = request_service.submit(
+        session,
+        actor_id="emp_ada",
+        reason="Two-day break",
+        employee_id="emp_ada",
+        category_id=category.id,
+        start_date=date(2026, 7, 2),
+        end_date=date(2026, 7, 3),
+        partial_minutes=None,
+    )
+    session.add(
+        Holiday(
+            company_id="cmp_warp_demo",
+            date=date(2026, 7, 3),
+            name="New company holiday",
+            observed=False,
+        )
+    )
+    session.flush()
+
+    request_service.decide(
+        session, request=request, approve=True, actor_id="adm_lindsey", note=None
+    )
+    debits = list(
+        session.scalars(
+            select(LedgerEntry).where(
+                LedgerEntry.entry_type == enums.EntryType.REQUEST_DEBIT
+            )
+        )
+    )
+    assert request.total_minutes == 960
+    assert [day.date for day in request.days] == [date(2026, 7, 2), date(2026, 7, 3)]
+    assert [entry.amount_minutes for entry in debits] == [-960]
+
+
 def test_balance_cap_keeps_credit_and_forfeiture_explainable(session):
     _, policy = _policy(session, max_balance_minutes=300)
     run = accrual_service.run_scheduled(
@@ -312,6 +350,9 @@ def test_advanced_policy_settings_round_trip_through_the_admin_api(session):
                 "effective_from": "2026-01-01",
                 "kind": "ACCRUAL",
                 "change_reason": "Initial policy",
+                "new_hire_proration": "FULL",
+                "allow_negative": True,
+                "negative_floor_minutes": -480,
                 "max_balance_minutes": 2400,
                 "carryover_cap_minutes": 1200,
                 "tenure_transition": "NEXT_PERIOD",
@@ -341,4 +382,7 @@ def test_advanced_policy_settings_round_trip_through_the_admin_api(session):
     version = response.json()["current_version"]
     assert version["max_balance_minutes"] == 2400
     assert version["carryover_cap_minutes"] == 1200
+    assert version["new_hire_proration"] == "FULL"
+    assert version["allow_negative"] is True
+    assert version["negative_floor_minutes"] == -480
     assert [rule["min_tenure_months"] for rule in version["rules"]] == [0, 24]
