@@ -219,6 +219,7 @@ class JobRun(Base, TimestampMixin):
     __tablename__ = "job_runs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     kind: Mapped[enums.JobKind] = mapped_column(
         _enum(enums.JobKind, "job_kind"), nullable=False
     )
@@ -226,6 +227,13 @@ class JobRun(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     entries_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class DemoState(Base):
+    __tablename__ = "demo_state"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    current_date: Mapped[date] = mapped_column(Date, nullable=False)
 
 
 class Holiday(Base, TimestampMixin):

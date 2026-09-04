@@ -6,12 +6,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import enums
+from app.integrations import employee_service
 from app.models import BalanceSnapshot, TimeOffCategory
 from app.services import assignment_service, ledger_service, policy_service
 
 
 def list_balances(session: Session, *, company_id: str, employee_id: str, on_date: date):
     rows = []
+    day_minutes = employee_service.get(employee_id).work_minutes_per_day
     categories = session.scalars(
         select(TimeOffCategory)
         .where(TimeOffCategory.company_id == company_id)
@@ -35,7 +37,7 @@ def list_balances(session: Session, *, company_id: str, employee_id: str, on_dat
                 "balance_minutes": 0,
                 "pending_hold_minutes": 0,
                 "available_minutes": 0,
-                "day_minutes": 480,
+                "day_minutes": day_minutes,
             })
             continue
         version = policy_service.version_effective_on(
@@ -56,6 +58,6 @@ def list_balances(session: Session, *, company_id: str, employee_id: str, on_dat
             "balance_minutes": balance,
             "pending_hold_minutes": pending,
             "available_minutes": balance - pending,
-            "day_minutes": 480,
+            "day_minutes": day_minutes,
         })
     return rows
