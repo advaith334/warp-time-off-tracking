@@ -97,6 +97,39 @@ describe('application shell', () => {
     })
   })
 
+  it('configures an hours-worked policy without calendar fields', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
+    fireEvent.change(screen.getByLabelText('Policy name'), {
+      target: { value: 'Hourly sick leave' },
+    })
+    fireEvent.change(screen.getByLabelText('Accrual method'), {
+      target: { value: 'HOURS_WORKED' },
+    })
+    fireEvent.change(screen.getByLabelText('Hours earned'), {
+      target: { value: '1' },
+    })
+    fireEvent.change(screen.getByLabelText('Hours worked per accrual'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create policy' }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([path, init]) =>
+        path === '/api/policies' && init?.method === 'POST')
+      expect(call).toBeDefined()
+      const body = JSON.parse(String(call?.[1]?.body))
+      expect(body.rules[0]).toMatchObject({
+        method: 'HOURS_WORKED',
+        amount: '1',
+        unit: 'HOUR',
+        frequency: null,
+        accrues_at: null,
+        per_minutes_worked: 1800,
+      })
+    })
+  })
+
   it('exposes preview, partial-day, and cancellation controls to employees', async () => {
     render(<App />)
     await screen.findByRole('button', { name: 'Audit' })

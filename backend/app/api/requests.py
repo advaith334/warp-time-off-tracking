@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import clock, enums
-from app.api.deps import get_actor, require_admin, require_self_or_admin
+from app.api.deps import get_actor, get_company_id, require_admin, require_self_or_admin
 from app.api.responses import RequestPreviewOut, TimeOffRequestOut
 from app.db import get_session
 from app.domain.requests import RequestError
@@ -21,8 +21,13 @@ def _out(row: TimeOffRequest) -> TimeOffRequestOut:
     return TimeOffRequestOut.of(row, employee_service.get(row.employee_id).name)
 
 
-def _request(session: Session, request_id: str) -> TimeOffRequest:
-    row = session.get(TimeOffRequest, request_id)
+def _request(session: Session, request_id: str, company_id: str) -> TimeOffRequest:
+    row = session.scalar(
+        select(TimeOffRequest).where(
+            TimeOffRequest.id == request_id,
+            TimeOffRequest.company_id == company_id,
+        )
+    )
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown request")
     return row
@@ -83,13 +88,14 @@ def list_requests(
     employee_id: str | None = Query(default=None),
     status: enums.RequestStatus | None = Query(default=None),
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(get_actor),
 ):
     if employee_id:
         require_self_or_admin(employee_id, actor)
     elif not actor.is_admin:
         employee_id = actor.id
-    query = select(TimeOffRequest)
+    query = select(TimeOffRequest).where(TimeOffRequest.company_id == company_id)
     if employee_id:
         query = query.where(TimeOffRequest.employee_id == employee_id)
     if status:
@@ -101,13 +107,14 @@ def _decide(
     request_id: str,
     payload: DecisionIn,
     approve: bool,
+    company_id: str,
     session: Session,
     actor: Employee,
 ):
     try:
         row = request_service.decide(
             session,
-            request=_request(session, request_id),
+            request=_request(session, request_id, company_id),
             approve=approve,
             actor_id=actor.id,
             note=payload.note,
@@ -123,9 +130,10 @@ def approve(
     request_id: str,
     payload: DecisionIn,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(require_admin),
 ):
-    return _decide(request_id, payload, True, session, actor)
+    return _decide(request_id, payload, True, company_id, session, actor)
 
 
 @router.post("/{request_id}/deny", response_model=TimeOffRequestOut)
@@ -133,18 +141,20 @@ def deny(
     request_id: str,
     payload: DecisionIn,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(require_admin),
 ):
-    return _decide(request_id, payload, False, session, actor)
+    return _decide(request_id, payload, False, company_id, session, actor)
 
 
 @router.post("/{request_id}/cancel", response_model=TimeOffRequestOut)
 def cancel(
     request_id: str,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(get_actor),
 ):
-    row = _request(session, request_id)
+    row = _request(session, request_id, company_id)
     require_self_or_admin(row.employee_id, actor)
     try:
         request_service.cancel(

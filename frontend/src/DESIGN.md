@@ -25,7 +25,7 @@ flowchart TD
 | --- | --- | --- |
 | My time off | Category balances, available minutes, holds | None |
 | My requests | Own request history and events | Preview, partial-day submit, cancel |
-| Policies | Categories, policies, versions, holidays | Create policy/category, assign employee, sync holidays |
+| Policies | Categories, policies, versions, holidays | Create or version policies, configure either accrual method, assign employees, sync holidays |
 | Approvals | Company pending requests and events | Approve or deny |
 | Audit | Filtered ledger and job runs | Select employee/policy |
 | Demo | Simulated date and job results | Move clock, run accrual or rollover |

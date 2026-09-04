@@ -14,6 +14,10 @@ class AccrualMethod(StrEnum):
 
 
 class Schedule(StrEnum):
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    SEMIMONTHLY = "SEMIMONTHLY"
+    BIWEEKLY = "BIWEEKLY"
     MONTHLY = "MONTHLY"
     YEARLY = "YEARLY"
 

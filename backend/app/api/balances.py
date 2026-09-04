@@ -35,10 +35,14 @@ def ledger(
     employee_id: str,
     policy_id: str | None = Query(default=None),
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(get_actor),
 ):
     require_self_or_admin(employee_id, actor)
-    query = select(LedgerEntry).where(LedgerEntry.employee_id == employee_id)
+    query = select(LedgerEntry).where(
+        LedgerEntry.company_id == company_id,
+        LedgerEntry.employee_id == employee_id,
+    )
     if policy_id:
         query = query.where(LedgerEntry.policy_id == policy_id)
     return list(session.scalars(query.order_by(LedgerEntry.effective_date, LedgerEntry.created_at)))

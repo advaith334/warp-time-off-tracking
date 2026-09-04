@@ -47,7 +47,10 @@ export default function App() {
   const [effectiveFrom, setEffectiveFrom] = useState('')
   const [changeReason, setChangeReason] = useState('Policy created')
   const [kind, setKind] = useState<'ACCRUAL' | 'UNLIMITED'>('ACCRUAL')
+  const [accrualMethod, setAccrualMethod] = useState<'TIME' | 'HOURS_WORKED'>('TIME')
   const [amount, setAmount] = useState('20')
+  const [frequency, setFrequency] = useState<'DAILY' | 'WEEKLY' | 'SEMIMONTHLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY'>('YEARLY')
+  const [perHoursWorked, setPerHoursWorked] = useState('30')
   const [newHireProration, setNewHireProration] = useState<'PRORATE' | 'FULL' | 'NONE'>('PRORATE')
   const [allowNegative, setAllowNegative] = useState(false)
   const [negativeFloor, setNegativeFloor] = useState('-480')
@@ -140,15 +143,23 @@ export default function App() {
 
   async function savePolicy(event: React.FormEvent) {
     event.preventDefault()
+    const rule = (ruleAmount: string, minTenureMonths: number) => accrualMethod === 'TIME'
+      ? {
+          method: 'TIME', amount: ruleAmount, unit: 'DAY', frequency,
+          accrues_at: 'START_OF_PERIOD', per_minutes_worked: null,
+          min_tenure_months: minTenureMonths,
+        }
+      : {
+          method: 'HOURS_WORKED', amount: ruleAmount, unit: 'HOUR',
+          frequency: null, accrues_at: null,
+          per_minutes_worked: Number(perHoursWorked) * 60,
+          min_tenure_months: minTenureMonths,
+        }
     const rules = kind === 'UNLIMITED' ? [] : [
-      {
-        method: 'TIME', amount, unit: 'DAY', frequency: 'YEARLY',
-        accrues_at: 'START_OF_PERIOD', min_tenure_months: 0,
-      },
-      ...(tenureMonths && tenureAmount ? [{
-        method: 'TIME', amount: tenureAmount, unit: 'DAY', frequency: 'YEARLY',
-        accrues_at: 'START_OF_PERIOD', min_tenure_months: Number(tenureMonths),
-      }] : []),
+      rule(amount, 0),
+      ...(tenureMonths && tenureAmount
+        ? [rule(tenureAmount, Number(tenureMonths))]
+        : []),
     ]
     const policyFields = {
       name: policyName, effective_from: effectiveFrom, kind, rules,
@@ -184,7 +195,12 @@ export default function App() {
       : dayAfter(policy.current_version.effective_from))
     setChangeReason('')
     setKind(policy.current_version.kind)
+    setAccrualMethod(base?.method ?? 'TIME')
     setAmount(base?.amount ?? '20')
+    setFrequency(base?.frequency ?? 'YEARLY')
+    setPerHoursWorked(base?.per_minutes_worked
+      ? String(base.per_minutes_worked / 60)
+      : '30')
     setNewHireProration(policy.current_version.new_hire_proration)
     setAllowNegative(policy.current_version.allow_negative)
     setNegativeFloor(String(policy.current_version.negative_floor_minutes || -480))
@@ -342,13 +358,14 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={Boolean(editingPolicyId)} aria-label="Policy category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="ACCRUAL">Accrual</option><option value="UNLIMITED">Unlimited</option></select></div>
             <div className="grid grid-cols-2 gap-2"><label className="text-xs text-neutral-600">Effective from<input className={inputClass + ' mt-1 w-full'} type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} required /></label><label className="text-xs text-neutral-600">Change reason<input className={inputClass + ' mt-1 w-full'} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Why is this changing?" required /></label></div>
             {kind === 'ACCRUAL' && <div className="grid grid-cols-2 gap-2">
-              <input className={inputClass} type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Days per year" placeholder="Days per year" />
-              <select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate new hires</option><option value="FULL">Full first period</option><option value="NONE">Start next period</option></select>
+              <select className={inputClass} value={accrualMethod} onChange={(event) => setAccrualMethod(event.target.value as typeof accrualMethod)} aria-label="Accrual method"><option value="TIME">Time based</option><option value="HOURS_WORKED">Hours worked</option></select>
+              <input className={inputClass} type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label={accrualMethod === 'TIME' ? 'Days per period' : 'Hours earned'} placeholder={accrualMethod === 'TIME' ? 'Days per period' : 'Hours earned'} required />
+              {accrualMethod === 'TIME' ? <><select className={inputClass} value={frequency} onChange={(event) => setFrequency(event.target.value as typeof frequency)} aria-label="Accrual frequency"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="SEMIMONTHLY">Twice monthly</option><option value="BIWEEKLY">Every two weeks</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select><select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate new hires</option><option value="FULL">Full first period</option><option value="NONE">Start next period</option></select></> : <input className={inputClass} type="number" min="0.01" step="0.01" value={perHoursWorked} onChange={(event) => setPerHoursWorked(event.target.value)} aria-label="Hours worked per accrual" placeholder="Per hours worked" required />}
               <input className={inputClass} type="number" min="1" value={maxBalance} onChange={(event) => setMaxBalance(event.target.value)} aria-label="Maximum balance minutes" placeholder="Max balance minutes" />
               <input className={inputClass} type="number" min="0" value={carryoverCap} onChange={(event) => setCarryoverCap(event.target.value)} aria-label="Carryover cap minutes" placeholder="Carryover cap minutes" disabled={expires} />
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expires} onChange={(event) => setExpires(event.target.checked)} disabled={Boolean(carryoverCap)} /> Expire yearly</label>
               <input className={inputClass} type="number" min="1" value={tenureMonths} onChange={(event) => setTenureMonths(event.target.value)} aria-label="Tenure tier months" placeholder="Tier after months" />
-              <input className={inputClass} type="number" min="1" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier days" placeholder="Tier days/year" />
+              <input className={inputClass} type="number" min="0.01" step="0.01" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier amount" placeholder="Tier amount" />
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allowNegative} onChange={(event) => setAllowNegative(event.target.checked)} /> Allow negative balance</label>
               <input className={inputClass} type="number" max="-1" value={negativeFloor} onChange={(event) => setNegativeFloor(event.target.value)} aria-label="Negative balance floor minutes" placeholder="Negative floor minutes" disabled={!allowNegative} required={allowNegative} />
             </div>}

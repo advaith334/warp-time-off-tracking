@@ -62,8 +62,10 @@ def preview(
     partial_minutes: int | None,
     lock_balance: bool = False,
 ) -> dict:
+    employee = employee_service.get(employee_id)
     assignment = assignment_service.assignment_for_category(
         session,
+        company_id=employee.company_id,
         employee_id=employee_id,
         category_id=category_id,
         on_date=start_date,
@@ -77,7 +79,6 @@ def preview(
     )
     if version is None:
         raise RequestError("No policy version is effective on the request date.")
-    employee = employee_service.get(employee_id)
     holiday_dates = frozenset(
         session.scalars(
             select(Holiday.date).where(

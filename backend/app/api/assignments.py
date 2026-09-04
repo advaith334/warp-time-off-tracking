@@ -29,13 +29,20 @@ def _out(row: PolicyAssignment) -> AssignmentOut:
 def list_assignments(
     policy_id: str,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     _actor: Employee = Depends(require_admin),
 ):
+    policy = session.get(Policy, policy_id)
+    if policy is None or policy.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Unknown policy")
     return [
         _out(row)
         for row in session.scalars(
             select(PolicyAssignment)
-            .where(PolicyAssignment.policy_id == policy_id)
+            .where(
+                PolicyAssignment.company_id == company_id,
+                PolicyAssignment.policy_id == policy_id,
+            )
             .order_by(PolicyAssignment.effective_from)
         )
     ]
@@ -74,13 +81,14 @@ def assign(
 def employee_assignments(
     employee_id: str,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(get_actor),
 ):
     require_self_or_admin(employee_id, actor)
     return [
         _out(row)
         for row in assignment_service.assignments_for_employee(
-            session, employee_id=employee_id
+            session, company_id=company_id, employee_id=employee_id
         )
     ]
 
@@ -90,10 +98,11 @@ def end_assignment(
     assignment_id: str,
     payload: EndAssignmentIn,
     session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
     actor: Employee = Depends(require_admin),
 ):
     row = session.get(PolicyAssignment, assignment_id)
-    if row is None:
+    if row is None or row.company_id != company_id:
         raise HTTPException(status_code=404, detail="Unknown assignment")
     try:
         assignment_service.end(

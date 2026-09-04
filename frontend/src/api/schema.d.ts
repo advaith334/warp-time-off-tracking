@@ -945,7 +945,7 @@ export interface components {
          * Schedule
          * @enum {string}
          */
-        Schedule: "MONTHLY" | "YEARLY";
+        Schedule: "DAILY" | "WEEKLY" | "SEMIMONTHLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
         /**
          * SourceType
          * @enum {string}
@@ -1191,7 +1191,9 @@ export interface operations {
     categories_api_categories_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1204,6 +1206,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1374,7 +1385,9 @@ export interface operations {
     list_employees_api_employees_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1389,12 +1402,23 @@ export interface operations {
                     "application/json": components["schemas"]["EmployeeOut"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_employee_api_employees__employee_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path: {
                 employee_id: string;
             };
@@ -1550,7 +1574,9 @@ export interface operations {
             query: {
                 year: number;
             };
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1647,7 +1673,9 @@ export interface operations {
     policies_api_policies_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1660,6 +1688,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PolicyOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1809,7 +1846,9 @@ export interface operations {
     versions_api_policies__policy_id__versions_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
             path: {
                 policy_id: string;
             };

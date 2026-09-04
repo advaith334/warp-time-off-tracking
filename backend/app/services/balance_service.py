@@ -22,6 +22,7 @@ def list_balances(session: Session, *, company_id: str, employee_id: str, on_dat
     for category in categories:
         assignment = assignment_service.assignment_for_category(
             session,
+            company_id=company_id,
             employee_id=employee_id,
             category_id=category.id,
             on_date=on_date,
