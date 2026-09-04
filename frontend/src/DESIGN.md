@@ -11,7 +11,7 @@ flowchart TD
     Role -- no --> Requests[My requests]
     Role -- yes --> Overview[Company overview]
     Role -- yes --> Calendar[Annual holiday + leave calendar]
-    Role -- yes --> Groups[People groups + membership]
+    Role -- yes --> Groups[Groups + employee roster]
     Role -- yes --> Policies[Policies + group audiences]
     Role -- yes --> Approvals[Approval queue]
     Role -- yes --> Audit[Ledger + job runs]
@@ -29,7 +29,7 @@ flowchart TD
 | My leave | Category balances, available time, holds, earning and carryover rules | Start a request |
 | My requests | Own request history and events | Preview, partial-day or custom-type submit, cancel |
 | Calendar | Holidays plus approved and pending team leave | Jump from the event index to a month |
-| People groups | Employees and reusable company groups | Create/remove groups and update multi-group membership |
+| Groups | Employees and reusable company groups | Create/remove groups and place each employee in at most one group |
 | Policies | Categories, policies, versions, groups, holidays | Create or version policies, target all employees or multiple groups, sync holidays |
 | Approvals | Company pending requests and events | Approve or deny |
 | Audit | Filtered ledger and job runs | Select employee/policy |

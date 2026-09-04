@@ -393,6 +393,31 @@
         "title": "DecisionIn",
         "type": "object"
       },
+      "EmployeeGroupMembershipIn": {
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          }
+        },
+        "required": [
+          "effective_from"
+        ],
+        "title": "EmployeeGroupMembershipIn",
+        "type": "object"
+      },
       "EmployeeGroupOut": {
         "properties": {
           "id": {
@@ -2321,6 +2346,61 @@
         "summary": "Balances",
         "tags": [
           "balances"
+        ]
+      }
+    },
+    "/api/employees/{employee_id}/group": {
+      "put": {
+        "operationId": "set_employee_group_api_employees__employee_id__group_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeGroupMembershipIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Employee Group",
+        "tags": [
+          "groups"
         ]
       }
     },

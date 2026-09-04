@@ -9,8 +9,9 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 |---|---|---|
 | Policy settings change | Handled | A future-effective immutable version is appended; `test_future_policy_version_changes_only_future_accrual_periods`. |
 | Common calendar cadences | Handled | Daily, weekly, semimonthly, biweekly, monthly, and yearly periods tile without gaps; `test_additional_accrual_cadences_tile_without_gaps`. |
-| Arbitrary employee group | Handled | Admin-managed, multi-membership groups target one or many policies and reconcile effective-dated assignments; `test_multiple_groups_can_target_one_policy_without_duplicate_assignments`. |
-| Employee moves between groups | Handled | Membership changes end prior eligibility and start new eligibility without rewriting history; `test_changing_group_membership_reconciles_effective_dated_policy_access`. |
+| Arbitrary employee group | Handled | Admin-managed groups can target one or many policies; one employee cannot belong to conflicting groups; `test_multiple_groups_can_target_one_policy` and `test_an_employee_can_belong_to_only_one_group`. |
+| Employee moves between groups | Handled | A move ends old eligibility before starting a same-category policy, preserving history without overlap; `test_moving_an_employee_switches_same_category_policies_without_overlap`. |
+| Employee group removed | Handled | Membership is removed and group-targeted eligibility ends on the prior day; `test_removing_a_group_ends_its_policy_eligibility`. |
 | Policies overlap in one category | Handled | Inclusive PostgreSQL exclusion constraint, including one-day ranges; `test_a_one_day_assignment_still_blocks_an_overlap`. |
 | No policy for a category | Handled | Balance API returns `has_policy: false`; requests fail clearly; `test_seed_creates_one_coherent_idempotent_demo_story` and `test_a_category_without_a_policy_rejects_requests_clearly`. |
 | Mid-period joiner | Handled | Admins choose prorated, full, or next-period accrual; `test_a_mid_period_joiner_is_prorated_by_eligible_calendar_days` and `test_new_hire_setting_supports_prorated_full_or_next_period_accrual`. |

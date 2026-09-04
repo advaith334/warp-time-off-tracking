@@ -157,8 +157,6 @@ export default function App() {
   const [allEmployees, setAllEmployees] = useState(true)
   const [policyGroupIds, setPolicyGroupIds] = useState<string[]>([])
   const [groupName, setGroupName] = useState('')
-  const [newGroupMemberIds, setNewGroupMemberIds] = useState<string[]>([])
-  const [groupDrafts, setGroupDrafts] = useState<Record<string, string[]>>({})
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null)
   const [effectiveFrom, setEffectiveFrom] = useState('')
   const [changeReason, setChangeReason] = useState('Policy created')
@@ -196,7 +194,7 @@ export default function App() {
         { id: 'overview', label: 'Overview' },
         { id: 'calendar', label: 'Calendar' },
         { id: 'policies', label: 'Policies' },
-        { id: 'people', label: 'People groups' },
+        { id: 'people', label: 'Groups' },
         { id: 'requests', label: 'Approvals' },
         { id: 'audit', label: 'Audit' },
         { id: 'demo', label: 'Demo' },
@@ -220,9 +218,6 @@ export default function App() {
       setCategories(cats)
       setPolicies(policyRows)
       setGroups(groupRows)
-      setGroupDrafts(Object.fromEntries(
-        groupRows.map((group) => [group.id, group.members.map((member) => member.employee_id)]),
-      ))
       setHolidays(holidayRows)
       setToday(state.today)
       setDemoDate(state.today)
@@ -395,17 +390,16 @@ export default function App() {
   async function createGroup(event: React.FormEvent) {
     event.preventDefault()
     await perform('group-create', 'Employee group created.', async () => {
-      await api.post('/groups', { name: groupName, employee_ids: newGroupMemberIds })
+      await api.post('/groups', { name: groupName, employee_ids: [] })
       setGroupName('')
-      setNewGroupMemberIds([])
       await load()
     })
   }
 
-  async function saveGroupMembers(groupId: string) {
-    await perform('group-' + groupId, 'Group membership updated.', async () => {
-      await api.put('/groups/' + groupId + '/members', {
-        employee_ids: groupDrafts[groupId] ?? [], effective_from: today,
+  async function assignEmployeeGroup(employeeId: string, groupId: string) {
+    await perform('membership-' + employeeId, 'Employee group updated.', async () => {
+      await api.put('/employees/' + employeeId + '/group', {
+        group_id: groupId || null, effective_from: today,
       })
       await load()
     })
@@ -568,7 +562,7 @@ export default function App() {
                 setError('')
                 setSuccess('')
               }}>
-                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.is_admin ? ' (admin)' : ''}</option>)}
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
               </select>
             </label>
           </div>
@@ -665,16 +659,15 @@ export default function App() {
           <form className="content-card group-builder" onSubmit={createGroup}>
             <div className="card-heading"><div><p className="eyebrow">Company structure</p><h3>Create a group</h3><p>Groups can describe employment type, location, team, or any rule your company uses.</p></div></div>
             <Field label="Group name" hint="Examples: Interns, contractors, New York team"><input className={inputClass} aria-label="Group name" value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="e.g. Seasonal employees" required /></Field>
-            <fieldset className="member-picker"><legend>Start with these people</legend>{teamMembers.map((employee) => <label className="person-check" key={employee.id}><input type="checkbox" checked={newGroupMemberIds.includes(employee.id)} onChange={() => setNewGroupMemberIds((current) => toggleId(current, employee.id))} /><span className="mini-avatar">{employee.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span><span><strong>{employee.name}</strong><small>{employee.employment_type.toLowerCase().replaceAll('_', ' ')}</small></span></label>)}</fieldset>
             <button className={buttonClass} disabled={busyAction === 'group-create'}>{busyAction === 'group-create' ? 'Creating…' : 'Create group'}</button>
+            <div className="group-registry"><span className="registry-label">Available groups</span>{groups.map((group) => <div key={group.id}><span className="group-glyph">◎</span><span><strong>{group.name}</strong><small>{group.members.length} {group.members.length === 1 ? 'person' : 'people'}</small></span><button className="text-button danger" type="button" aria-label={'Remove ' + group.name} disabled={busyAction === 'group-' + group.id} onClick={() => void removeGroup(group.id)}>×</button></div>)}</div>
           </form>
-          <div className="group-roster">
-            <div className="section-heading"><div><h3>Employee groups</h3><p>{groups.length} reusable audiences</p></div><span className="soft-chip">People may belong to more than one</span></div>
-            {groups.map((group) => <article className="content-card group-card" key={group.id}>
-              <header><div><span className="group-glyph">◎</span><div><h3>{group.name}</h3><p>{(groupDrafts[group.id] ?? []).length} {(groupDrafts[group.id] ?? []).length === 1 ? 'person' : 'people'}</p></div></div><button className="text-button danger" type="button" disabled={busyAction === 'group-' + group.id} onClick={() => void removeGroup(group.id)}>Remove group</button></header>
-              <div className="member-picker compact">{teamMembers.map((employee) => <label className="person-check" key={employee.id}><input type="checkbox" checked={(groupDrafts[group.id] ?? []).includes(employee.id)} onChange={() => setGroupDrafts((current) => ({ ...current, [group.id]: toggleId(current[group.id] ?? [], employee.id) }))} /><span className="mini-avatar">{employee.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span><span><strong>{employee.name}</strong><small>{employee.employment_type.toLowerCase().replaceAll('_', ' ')}</small></span></label>)}</div>
-              <footer><span>Changes update policy eligibility from {formatDate(today)}.</span><button className={secondaryButtonClass} type="button" disabled={busyAction === 'group-' + group.id} onClick={() => void saveGroupMembers(group.id)}>{busyAction === 'group-' + group.id ? 'Saving…' : 'Save members'}</button></footer>
-            </article>)}
+          <div className="content-card employee-roster">
+            <div className="card-heading"><div><p className="eyebrow">Eligibility roster</p><h3>One person, one group</h3><p>Moving someone updates the policies shown on their dashboard from {formatDate(today)}.</p></div><span className="soft-chip">{teamMembers.length} people</span></div>
+            <div className="roster-list">{teamMembers.map((employee) => {
+              const currentGroup = groups.find((group) => group.members.some((member) => member.employee_id === employee.id))
+              return <label className="roster-row" key={employee.id}><span className="mini-avatar">{employee.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span><span className="roster-person"><strong>{employee.name}</strong><small>{employee.employment_type.toLowerCase().replaceAll('_', ' ')}</small></span><span className="assignment-arrow" aria-hidden="true">→</span><select className={inputClass} aria-label={'Group for ' + employee.name} value={currentGroup?.id ?? ''} disabled={busyAction === 'membership-' + employee.id} onChange={(event) => void assignEmployeeGroup(employee.id, event.target.value)}><option value="">Unassigned</option>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label>
+            })}</div>
           </div>
         </section>}
 

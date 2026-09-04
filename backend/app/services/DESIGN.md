@@ -25,7 +25,7 @@ flowchart LR
     Assign --> Rules[Balances, requests, and accruals]
 ```
 
-- Employees may belong to multiple groups; audience resolution de-duplicates them.
+- An employee belongs to at most one company group; a policy can target several groups.
 - Membership changes preserve prior eligibility dates instead of rewriting history.
 
 ```mermaid

@@ -31,7 +31,7 @@ erDiagram
 | --- | --- | --- |
 | `time_off_categories` | Vacation, Sick, Maternity, and other company labels | Name is unique per company. |
 | `employee_groups` | Reusable company-defined audiences | Name is unique per company. |
-| `employee_group_members` | Multi-group employee membership | Each employee appears once per group. |
+| `employee_group_members` | Company-managed employee classification | An employee belongs to at most one group per company. |
 | `policies` | Stable identity for one category policy | Version history hangs from one identity. |
 | `policy_group_targets` | Multi-select policy audience | A group targets a policy at most once. |
 | `policy_versions` | Effective-dated configuration | Version number and effective date are unique per policy. |

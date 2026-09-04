@@ -11,7 +11,12 @@ from app.clock import today
 from app.db import get_session
 from app.integrations import Employee, employee_service
 from app.models import EmployeeGroup, Policy
-from app.schemas import GroupCreateIn, GroupMembersIn, PolicyAudienceIn
+from app.schemas import (
+    EmployeeGroupMembershipIn,
+    GroupCreateIn,
+    GroupMembersIn,
+    PolicyAudienceIn,
+)
 from app.services import group_service, policy_service
 
 router = APIRouter(prefix="/api", tags=["groups"])
@@ -120,6 +125,30 @@ def delete_group(
     try:
         group_service.remove(
             session, group=group, effective_from=today(session), actor_id=actor.id
+        )
+        session.commit()
+    except group_service.GroupError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return Response(status_code=204)
+
+
+@router.put("/employees/{employee_id}/group", status_code=204)
+def set_employee_group(
+    employee_id: str,
+    payload: EmployeeGroupMembershipIn,
+    session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
+    actor: Employee = Depends(require_admin),
+):
+    try:
+        group_service.set_employee_group(
+            session,
+            company_id=company_id,
+            employee_id=employee_id,
+            group_id=payload.group_id,
+            effective_from=payload.effective_from,
+            actor_id=actor.id,
         )
         session.commit()
     except group_service.GroupError as exc:

@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employees/{employee_id}/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Employee Group */
+        put: operations["set_employee_group_api_employees__employee_id__group_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employees/{employee_id}/ledger": {
         parameters: {
             query?: never;
@@ -670,6 +687,16 @@ export interface components {
         DecisionIn: {
             /** Note */
             note?: string | null;
+        };
+        /** EmployeeGroupMembershipIn */
+        EmployeeGroupMembershipIn: {
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Group Id */
+            group_id?: string | null;
         };
         /** EmployeeGroupOut */
         EmployeeGroupOut: {
@@ -1635,6 +1662,41 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BalanceOut"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_employee_group_api_employees__employee_id__group_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path: {
+                employee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmployeeGroupMembershipIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

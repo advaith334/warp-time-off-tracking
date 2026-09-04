@@ -32,10 +32,32 @@ def _employees(company_id: str, employee_ids: list[str]) -> list[str]:
     return unique_ids
 
 
+def _ensure_available(
+    session: Session,
+    *,
+    company_id: str,
+    employee_ids: list[str],
+    except_group_id: str | None = None,
+) -> None:
+    if not employee_ids:
+        return
+    query = select(EmployeeGroupMember).where(
+        EmployeeGroupMember.company_id == company_id,
+        EmployeeGroupMember.employee_id.in_(employee_ids),
+    )
+    if except_group_id:
+        query = query.where(EmployeeGroupMember.group_id != except_group_id)
+    existing = session.scalar(query.limit(1))
+    if existing:
+        employee = employee_service.get(existing.employee_id)
+        raise GroupError(f"{employee.name} already belongs to another group.")
+
+
 def create(
     session: Session, *, company_id: str, name: str, employee_ids: list[str], actor_id: str
 ) -> EmployeeGroup:
     employee_ids = _employees(company_id, employee_ids)
+    _ensure_available(session, company_id=company_id, employee_ids=employee_ids)
     name = name.strip()
     if not name:
         raise GroupError("Group name cannot be blank.")
@@ -51,7 +73,9 @@ def create(
     session.add(group)
     session.flush()
     group.members = [
-        EmployeeGroupMember(employee_id=employee_id, created_by=actor_id)
+        EmployeeGroupMember(
+            employee_id=employee_id, company_id=company_id, created_by=actor_id
+        )
         for employee_id in employee_ids
     ]
     session.flush()
@@ -158,12 +182,21 @@ def replace_members(
     actor_id: str,
 ) -> EmployeeGroup:
     employee_ids = _employees(group.company_id, employee_ids)
+    _ensure_available(
+        session,
+        company_id=group.company_id,
+        employee_ids=employee_ids,
+        except_group_id=group.id,
+    )
     session.execute(
         delete(EmployeeGroupMember).where(EmployeeGroupMember.group_id == group.id)
     )
     session.add_all([
         EmployeeGroupMember(
-            group_id=group.id, employee_id=employee_id, created_by=actor_id
+            group_id=group.id,
+            employee_id=employee_id,
+            company_id=group.company_id,
+            created_by=actor_id,
         )
         for employee_id in employee_ids
     ])
@@ -182,6 +215,90 @@ def replace_members(
         )
     session.refresh(group)
     return group
+
+
+def set_employee_group(
+    session: Session,
+    *,
+    company_id: str,
+    employee_id: str,
+    group_id: str | None,
+    effective_from: date,
+    actor_id: str,
+) -> None:
+    _employees(company_id, [employee_id])
+    target_group = None
+    if group_id:
+        target_group = session.scalar(
+            select(EmployeeGroup)
+            .where(
+                EmployeeGroup.id == group_id,
+                EmployeeGroup.company_id == company_id,
+            )
+            .with_for_update()
+        )
+        if target_group is None:
+            raise GroupError("The selected group does not exist.")
+    current = session.scalar(
+        select(EmployeeGroupMember)
+        .where(
+            EmployeeGroupMember.company_id == company_id,
+            EmployeeGroupMember.employee_id == employee_id,
+        )
+        .with_for_update()
+    )
+    if current and current.group_id == group_id:
+        return
+    old_group_id = current.group_id if current else None
+    old_policy_ids = set(
+        session.scalars(
+            select(PolicyGroupTarget.policy_id).where(
+                PolicyGroupTarget.group_id == old_group_id
+            )
+        )
+    ) if old_group_id else set()
+    new_policy_ids = set(
+        session.scalars(
+            select(PolicyGroupTarget.policy_id).where(
+                PolicyGroupTarget.group_id == group_id
+            )
+        )
+    ) if group_id else set()
+    affected_policy_ids = old_policy_ids | new_policy_ids
+    policies_by_id = {
+        policy.id: policy
+        for policy in session.scalars(
+            select(Policy)
+            .where(Policy.id.in_(affected_policy_ids))
+            .order_by(Policy.id)
+            .with_for_update()
+        )
+    } if affected_policy_ids else {}
+    if current:
+        session.delete(current)
+        session.flush()
+    if target_group:
+        session.add(
+            EmployeeGroupMember(
+                group_id=target_group.id,
+                employee_id=employee_id,
+                company_id=company_id,
+                created_by=actor_id,
+            )
+        )
+    session.flush()
+    ordered_policy_ids = [
+        *sorted(old_policy_ids - new_policy_ids),
+        *sorted(old_policy_ids & new_policy_ids),
+        *sorted(new_policy_ids - old_policy_ids),
+    ]
+    for policy_id in ordered_policy_ids:
+        reconcile_policy(
+            session,
+            policy=policies_by_id[policy_id],
+            effective_from=effective_from,
+            actor_id=actor_id,
+        )
 
 
 def remove(

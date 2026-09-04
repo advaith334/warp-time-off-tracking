@@ -227,21 +227,31 @@ describe('application shell', () => {
     expect(screen.getByText('• Balance cannot go below zero')).toBeInTheDocument()
   })
 
-  it('lets admins create custom groups and assign their members', async () => {
+  it('lets admins create custom groups and assign one group per employee', async () => {
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'People groups' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Groups' }))
     const builder = screen.getByRole('heading', { name: 'Create a group' }).closest('form')!
     fireEvent.change(within(builder).getByLabelText('Group name'), {
       target: { value: 'Seasonal employees' },
     })
-    fireEvent.click(within(builder).getByRole('checkbox', { name: /Ada/ }))
     fireEvent.click(within(builder).getByRole('button', { name: 'Create group' }))
 
     await waitFor(() => {
       const call = vi.mocked(fetch).mock.calls.find(([path, request]) =>
         path === '/api/groups' && request?.method === 'POST')
       expect(JSON.parse(String(call?.[1]?.body))).toEqual({
-        name: 'Seasonal employees', employee_ids: ['emp_ada'],
+        name: 'Seasonal employees', employee_ids: [],
+      })
+    })
+
+    fireEvent.change(screen.getByLabelText('Group for Ada'), {
+      target: { value: 'grp_part_time' },
+    })
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([path, request]) =>
+        path === '/api/employees/emp_ada/group' && request?.method === 'PUT')
+      expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+        group_id: 'grp_part_time', effective_from: '2026-03-16',
       })
     })
   })

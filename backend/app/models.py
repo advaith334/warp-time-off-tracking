@@ -89,9 +89,15 @@ class EmployeeGroupMember(Base, TimestampMixin):
         ForeignKey("employee_groups.id", ondelete="CASCADE"), primary_key=True
     )
     employee_id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
 
     group: Mapped[EmployeeGroup] = relationship(back_populates="members")
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id", "employee_id", name="uq_employee_single_group_per_company"
+        ),
+    )
 
 
 class Policy(Base, TimestampMixin):

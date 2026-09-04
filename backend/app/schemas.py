@@ -108,6 +108,11 @@ class GroupMembersIn(BaseModel):
     effective_from: date
 
 
+class EmployeeGroupMembershipIn(BaseModel):
+    group_id: str | None = None
+    effective_from: date
+
+
 class PolicyAudienceIn(BaseModel):
     all_employees: bool = False
     group_ids: list[str] = Field(default_factory=list)
