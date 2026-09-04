@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, setActor } from './api/client'
-import type { Balance, Category, Employee, Policy } from './api/types'
+import type { Balance, Category, Employee, Policy, TimeOffRequest } from './api/types'
 
 const inputClass = 'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm'
 const buttonClass = 'rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white'
@@ -10,6 +10,7 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>([])
   const [policies, setPolicies] = useState<Policy[]>([])
   const [balances, setBalances] = useState<Balance[]>([])
+  const [requests, setRequests] = useState<TimeOffRequest[]>([])
   const [actorId, setActorId] = useState('adm_lindsey')
   const [categoryName, setCategoryName] = useState('')
   const [policyName, setPolicyName] = useState('')
@@ -17,6 +18,9 @@ export default function App() {
   const [amount, setAmount] = useState('20')
   const [categoryId, setCategoryId] = useState('')
   const [error, setError] = useState('')
+  const [requestCategoryId, setRequestCategoryId] = useState('')
+  const [requestStart, setRequestStart] = useState('')
+  const [requestEnd, setRequestEnd] = useState('')
 
   async function load() {
     try {
@@ -29,6 +33,7 @@ export default function App() {
       setCategories(cats)
       setPolicies(policyRows)
       setCategoryId((current) => current || cats[0]?.id || '')
+      setRequestCategoryId((current) => current || cats[0]?.id || '')
       setError('')
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : String(caught))
@@ -44,6 +49,12 @@ export default function App() {
     api.get<Balance[]>('/employees/' + actorId + '/balances?on_date=' + today)
       .then(setBalances)
       .catch(() => setBalances([]))
+  }, [actorId])
+
+  useEffect(() => {
+    api.get<TimeOffRequest[]>('/requests')
+      .then(setRequests)
+      .catch(() => setRequests([]))
   }, [actorId])
 
   async function createCategory(event: React.FormEvent) {
@@ -75,6 +86,23 @@ export default function App() {
       employee_ids: [employeeId],
       effective_from: new Date().toISOString().slice(0, 10),
     })
+  }
+
+  async function submitRequest(event: React.FormEvent) {
+    event.preventDefault()
+    await api.post('/requests', {
+      employee_id: actorId,
+      category_id: requestCategoryId,
+      reason: 'Time off',
+      start_date: requestStart,
+      end_date: requestEnd,
+    })
+    setRequests(await api.get<TimeOffRequest[]>('/requests'))
+  }
+
+  async function decide(requestId: string, action: 'approve' | 'deny') {
+    await api.post('/requests/' + requestId + '/' + action, {})
+    setRequests(await api.get<TimeOffRequest[]>('/requests'))
   }
 
   const actor = employees.find((employee) => employee.id === actorId)
@@ -149,6 +177,35 @@ export default function App() {
           </form>
         </section>
       )}
+
+      {!actor?.is_admin && (
+        <form onSubmit={submitRequest} className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-4">
+          <select className={inputClass} value={requestCategoryId} onChange={(event) => setRequestCategoryId(event.target.value)}>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+          <input className={inputClass} type="date" value={requestStart} onChange={(event) => setRequestStart(event.target.value)} required />
+          <input className={inputClass} type="date" value={requestEnd} onChange={(event) => setRequestEnd(event.target.value)} required />
+          <button className={buttonClass}>Request time off</button>
+        </form>
+      )}
+
+      <section className="rounded-xl border bg-white">
+        <h2 className="border-b px-5 py-4 font-semibold">Requests</h2>
+        {requests.map((request) => (
+          <div key={request.id} className="flex flex-wrap items-center gap-3 border-b px-5 py-3 text-sm last:border-0">
+            <span className="font-medium">{request.employee_name}</span>
+            <span className="text-neutral-500">{request.start_date} to {request.end_date}</span>
+            <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">{request.status.toLowerCase()}</span>
+            {actor?.is_admin && request.status === 'PENDING' && (
+              <span className="ml-auto flex gap-2">
+                <button className={buttonClass} onClick={() => void decide(request.id, 'approve')}>Approve</button>
+                <button className={inputClass} onClick={() => void decide(request.id, 'deny')}>Deny</button>
+              </span>
+            )}
+          </div>
+        ))}
+        {requests.length === 0 && <p className="p-5 text-sm text-neutral-500">No requests.</p>}
+      </section>
 
       <section className="space-y-3">
         {policies.map((policy) => (

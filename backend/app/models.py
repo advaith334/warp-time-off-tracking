@@ -101,6 +101,8 @@ class PolicyVersion(Base, TimestampMixin):
         nullable=False,
         default=enums.NewHireProration.PRORATE,
     )
+    allow_negative: Mapped[bool] = mapped_column(nullable=False, default=False)
+    negative_floor_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     policy: Mapped[Policy] = relationship(back_populates="versions")
     rules: Mapped[list[AccrualRule]] = relationship(
@@ -201,6 +203,7 @@ class BalanceSnapshot(Base):
         ForeignKey("policies.id"), primary_key=True
     )
     balance_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pending_hold_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class JobRun(Base, TimestampMixin):
@@ -214,3 +217,64 @@ class JobRun(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     entries_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class TimeOffRequest(Base, TimestampMixin):
+    __tablename__ = "time_off_requests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    employee_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policies.id"), nullable=False)
+    policy_version_id: Mapped[str] = mapped_column(ForeignKey("policy_versions.id"), nullable=False)
+    category_id: Mapped[str] = mapped_column(ForeignKey("time_off_categories.id"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[enums.RequestStatus] = mapped_column(
+        _enum(enums.RequestStatus, "request_status"), nullable=False
+    )
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    total_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_partial_day: Mapped[bool] = mapped_column(nullable=False, default=False)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    decided_by: Mapped[str | None] = mapped_column(String(64))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    days: Mapped[list[RequestDay]] = relationship(
+        back_populates="request", order_by="RequestDay.date", cascade="all, delete-orphan"
+    )
+    events: Mapped[list[RequestEvent]] = relationship(
+        back_populates="request", order_by="RequestEvent.at", cascade="all, delete-orphan"
+    )
+
+
+class RequestDay(Base):
+    __tablename__ = "request_days"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    request_id: Mapped[str] = mapped_column(ForeignKey("time_off_requests.id"), nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    request: Mapped[TimeOffRequest] = relationship(back_populates="days")
+    __table_args__ = (
+        UniqueConstraint("request_id", "date", name="uq_request_day"),
+    )
+
+
+class RequestEvent(Base):
+    __tablename__ = "request_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    request_id: Mapped[str] = mapped_column(ForeignKey("time_off_requests.id"), nullable=False)
+    from_status: Mapped[enums.RequestStatus | None] = mapped_column(
+        _enum(enums.RequestStatus, "request_event_from_status")
+    )
+    to_status: Mapped[enums.RequestStatus] = mapped_column(
+        _enum(enums.RequestStatus, "request_event_to_status"), nullable=False
+    )
+    actor_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    request: Mapped[TimeOffRequest] = relationship(back_populates="events")
