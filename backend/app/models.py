@@ -96,6 +96,11 @@ class PolicyVersion(Base, TimestampMixin):
     )
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
     change_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    new_hire_proration: Mapped[enums.NewHireProration] = mapped_column(
+        _enum(enums.NewHireProration, "new_hire_proration"),
+        nullable=False,
+        default=enums.NewHireProration.PRORATE,
+    )
 
     policy: Mapped[Policy] = relationship(back_populates="versions")
     rules: Mapped[list[AccrualRule]] = relationship(
@@ -127,6 +132,7 @@ class AccrualRule(Base):
     accrues_at: Mapped[enums.AccruesAt | None] = mapped_column(
         _enum(enums.AccruesAt, "accrues_at")
     )
+    per_minutes_worked: Mapped[int | None] = mapped_column(Integer)
 
     version: Mapped[PolicyVersion] = relationship(back_populates="rules")
 
@@ -160,3 +166,51 @@ class PolicyAssignment(Base, TimestampMixin):
             using="gist",
         ),
     )
+
+
+class LedgerEntry(Base, TimestampMixin):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    employee_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policies.id"), nullable=False)
+    policy_version_id: Mapped[str] = mapped_column(
+        ForeignKey("policy_versions.id"), nullable=False
+    )
+    entry_type: Mapped[enums.EntryType] = mapped_column(
+        _enum(enums.EntryType, "entry_type"), nullable=False
+    )
+    amount_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_date: Mapped[date] = mapped_column(Date, nullable=False)
+    source_type: Mapped[enums.SourceType] = mapped_column(
+        _enum(enums.SourceType, "source_type"), nullable=False
+    )
+    source_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    __table_args__ = (
+        UniqueConstraint("source_type", "source_id", name="uq_ledger_source"),
+    )
+
+
+class BalanceSnapshot(Base):
+    __tablename__ = "balance_snapshots"
+
+    employee_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    policy_id: Mapped[str] = mapped_column(
+        ForeignKey("policies.id"), primary_key=True
+    )
+    balance_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class JobRun(Base, TimestampMixin):
+    __tablename__ = "job_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    kind: Mapped[enums.JobKind] = mapped_column(
+        _enum(enums.JobKind, "job_kind"), nullable=False
+    )
+    source_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    entries_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text)

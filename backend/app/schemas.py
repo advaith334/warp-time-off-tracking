@@ -14,6 +14,7 @@ class AccrualRuleIn(BaseModel):
     unit: enums.RateUnit
     frequency: enums.Schedule | None = None
     accrues_at: enums.AccruesAt | None = None
+    per_minutes_worked: int | None = Field(default=None, gt=0)
 
 
 class PolicyCreateIn(BaseModel):
@@ -23,6 +24,7 @@ class PolicyCreateIn(BaseModel):
     kind: enums.PolicyKind
     rules: list[AccrualRuleIn] = Field(default_factory=list)
     change_reason: str = "Policy created"
+    new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE
 
 
 class PolicyUpdateIn(BaseModel):
@@ -31,6 +33,13 @@ class PolicyUpdateIn(BaseModel):
     kind: enums.PolicyKind
     rules: list[AccrualRuleIn] = Field(default_factory=list)
     change_reason: str = Field(min_length=1)
+    new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE
+
+
+class PayrollAccrualIn(BaseModel):
+    payroll_run_id: str = Field(min_length=1)
+    period_end: date
+    minutes_by_employee: dict[str, int]
 
 
 class CategoryCreateIn(BaseModel):

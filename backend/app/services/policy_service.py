@@ -31,6 +31,7 @@ def _add_version(
     rules: list[dict],
     actor_id: str,
     change_reason: str,
+    new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
 ) -> PolicyVersion:
     version = PolicyVersion(
         policy_id=policy_id,
@@ -39,6 +40,7 @@ def _add_version(
         kind=kind,
         created_by=actor_id,
         change_reason=change_reason,
+        new_hire_proration=new_hire_proration,
     )
     session.add(version)
     session.flush()
@@ -61,6 +63,7 @@ def create(
     kind: enums.PolicyKind,
     rules: list[dict],
     change_reason: str,
+    new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
 ) -> Policy:
     _validate(kind, rules)
     category = session.get(TimeOffCategory, category_id)
@@ -84,6 +87,7 @@ def create(
         rules=rules,
         actor_id=actor_id,
         change_reason=change_reason,
+        new_hire_proration=new_hire_proration,
     )
     session.refresh(policy)
     return policy
@@ -99,6 +103,7 @@ def update(
     rules: list[dict],
     change_reason: str,
     name: str | None,
+    new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
 ) -> PolicyVersion:
     _validate(kind, rules)
     current = latest_version(session, policy.id)
@@ -119,6 +124,7 @@ def update(
         rules=rules,
         actor_id=actor_id,
         change_reason=change_reason,
+        new_hire_proration=new_hire_proration,
     )
 
 

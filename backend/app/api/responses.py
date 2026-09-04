@@ -39,6 +39,7 @@ class AccrualRuleOut(Out):
     unit: enums.RateUnit
     frequency: enums.Schedule | None
     accrues_at: enums.AccruesAt | None
+    per_minutes_worked: int | None
 
 
 class PolicyVersionOut(Out):
@@ -48,6 +49,7 @@ class PolicyVersionOut(Out):
     kind: enums.PolicyKind
     created_by: str
     change_reason: str
+    new_hire_proration: enums.NewHireProration
     created_at: datetime
     rules: list[AccrualRuleOut]
 
@@ -86,3 +88,35 @@ class AssignmentOut(Out):
     effective_from: date
     effective_to: date | None
     created_by: str
+
+
+class BalanceOut(Out):
+    category_id: str
+    category_name: str
+    has_policy: bool
+    policy_id: str | None
+    policy_name: str | None
+    is_unlimited: bool
+    balance_minutes: int
+    day_minutes: int
+
+
+class LedgerEntryOut(Out):
+    id: str
+    entry_type: enums.EntryType
+    amount_minutes: int
+    effective_date: date
+    source_type: enums.SourceType
+    source_id: str
+    note: str | None
+    created_at: datetime
+
+
+class JobRunOut(Out):
+    id: str
+    kind: enums.JobKind
+    source_id: str
+    status: str
+    entries_created: int
+    error: str | None
+    created_at: datetime
