@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api import assignments, employees, policies
 from app.config import settings
 from app.db import get_session
 from app.logging_config import RequestIdMiddleware
@@ -26,6 +27,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+for module in (employees, policies, assignments):
+    app.include_router(module.router)
 
 
 @app.get("/api/health", tags=["meta"])
