@@ -9,12 +9,25 @@ Time is accounted for in integer minutes through an append-only ledger. Policies
 | Requirement | Where it lives |
 | --- | --- |
 | Employee and company boundaries | Deterministic adapters in [`backend/app/integrations`](backend/app/integrations) |
-| Policy definitions and arbitrary assignments | Versioned policy and assignment services; [service flows](backend/app/services/DESIGN.md) |
+| Policy definitions and reusable employee groups | Versioned policies, multi-select audiences, and effective-dated assignments; [service flows](backend/app/services/DESIGN.md) |
 | Scheduled and payroll accrual | Idempotent accrual entry points; [service flows](backend/app/services/DESIGN.md#accrual-flows) |
 | Balances and auditability | Ledger-derived balances; [data model](backend/app/models.md) |
 | Employee requests and admin approvals | Frozen days, holds, row locks, debit/reversal; [request flow](backend/app/services/DESIGN.md#request-flow) |
 | Roles and company isolation | Server-side dependencies and scoped queries; [API boundary](backend/app/api/DESIGN.md) |
 | Reviewer experience | Seeded story, demo clock, named edge cases, generated contracts, and CI |
+
+## Given boundaries
+
+The take-home supplies these capabilities; this repository consumes them through small adapters rather than rebuilding them.
+
+| Given by the brief | How this build treats it |
+| --- | --- |
+| Monday-Friday, 9am-5pm working day | Default employee schedule: five weekdays and 480 minutes per day. |
+| Employee Service | Source of employee identity, hire date, employment type, and work configuration. |
+| Company Service | Source of company identity, timezone, and pay-period anchor. |
+| Payroll Service | `on_payroll_processed` supplies worked minutes; its run ID makes accrual replay-safe. |
+
+The in-process fixtures only make the demo runnable. Production swaps the adapters, not the policy or accounting model; see [external boundaries](backend/app/integrations/DESIGN.md).
 
 ## High-level design
 
@@ -83,7 +96,7 @@ It runs both test suites, backend and frontend lint, TypeScript checking, a prod
 | Immutable policy versions | A new effective date cannot rewrite the reason for an old balance. |
 | Frozen request days | Later calendar or policy changes do not silently reprice a request. |
 | Minutes as the accounting unit | Six-hour and eight-hour workdays remain exact without floating-point days. |
-| Injected external boundaries | Demo fixtures are deterministic; production integrations can replace adapters. |
+| Injected external boundaries | The given Employee, Company, and Payroll services are adapters, not duplicated subsystems. |
 
 ## Scope and scaling
 

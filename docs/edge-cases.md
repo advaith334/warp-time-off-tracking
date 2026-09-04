@@ -9,7 +9,9 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 |---|---|---|
 | Policy settings change | Handled | A future-effective immutable version is appended; `test_future_policy_version_changes_only_future_accrual_periods`. |
 | Common calendar cadences | Handled | Daily, weekly, semimonthly, biweekly, monthly, and yearly periods tile without gaps; `test_additional_accrual_cadences_tile_without_gaps`. |
-| Arbitrary employee group | Handled | Assignment rows, not employment-type columns; `test_arbitrary_employee_lists_become_assignment_rows`. |
+| Arbitrary employee group | Handled | Admin-managed groups can target one or many policies; one employee cannot belong to conflicting groups; `test_multiple_groups_can_target_one_policy` and `test_an_employee_can_belong_to_only_one_group`. |
+| Employee moves between groups | Handled | A move ends old eligibility before starting a same-category policy, preserving history without overlap; `test_moving_an_employee_switches_same_category_policies_without_overlap`. |
+| Employee group removed | Handled | Membership is removed and group-targeted eligibility ends on the prior day; `test_removing_a_group_ends_its_policy_eligibility`. |
 | Policies overlap in one category | Handled | Inclusive PostgreSQL exclusion constraint, including one-day ranges; `test_a_one_day_assignment_still_blocks_an_overlap`. |
 | No policy for a category | Handled | Balance API returns `has_policy: false`; requests fail clearly; `test_seed_creates_one_coherent_idempotent_demo_story` and `test_a_category_without_a_policy_rejects_requests_clearly`. |
 | Mid-period joiner | Handled | Admins choose prorated, full, or next-period accrual; `test_a_mid_period_joiner_is_prorated_by_eligible_calendar_days` and `test_new_hire_setting_supports_prorated_full_or_next_period_accrual`. |
@@ -18,6 +20,7 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 | Accrual exceeds cap | Handled | Credit and forfeiture are separate entries; `test_balance_cap_keeps_credit_and_forfeiture_explainable`. |
 | Six-hour employee | Handled | Day conversion reads Employee Service; `test_six_hour_employee_uses_a_six_hour_day_for_accrual_and_requests`. |
 | Unlimited policy | Handled | Requests skip balance checks and approvals post no debit; `test_unlimited_policy_needs_no_balance_and_posts_no_debit`. |
+| Unlisted leave type | Handled | Employees can describe an `Other` request on a dedicated approval-only policy without debiting an unrelated balance; `lets an employee describe an other leave type without using another balance`. |
 | Month-end and leap-day hire | Decided | Calendar-anchored periods tile regardless of hire day; `test_monthly_periods_tile_for_month_end_and_leap_day_hires`. |
 | Tenure changes mid-period | Decided | New tier begins at the next period boundary; `test_tenure_tier_starts_on_the_first_future_period_boundary`. |
 | Rollover replay | Handled | Expiry/carryover keys include employee, policy, year, and leg; `test_rollover_replay_is_a_no_op_and_expiry_is_separate_from_carryover`. |

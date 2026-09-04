@@ -10,7 +10,7 @@ from app.db import get_session
 from app.integrations import Employee
 from app.models import Policy, TimeOffCategory
 from app.schemas import CategoryCreateIn, PolicyCreateIn, PolicyUpdateIn
-from app.services import policy_service
+from app.services import group_service, policy_service
 
 router = APIRouter(prefix="/api", tags=["policies"])
 
@@ -73,11 +73,23 @@ def create_policy(
             session,
             company_id=company_id,
             actor_id=actor.id,
-            **payload.model_dump(exclude={"rules"}),
+            **payload.model_dump(exclude={"rules", "all_employees", "group_ids"}),
             rules=[rule.model_dump() for rule in payload.rules],
         )
+        group_service.set_policy_audience(
+            session,
+            policy=policy,
+            all_employees=payload.all_employees,
+            group_ids=payload.group_ids,
+            effective_from=payload.effective_from,
+            actor_id=actor.id,
+        )
     except policy_service.PolicyError as exc:
+        session.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from None
+    except group_service.GroupError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     session.commit()
     return PolicyOut.of(policy, policy_service.latest_version(session, policy.id))
 
@@ -91,15 +103,29 @@ def update_policy(
     actor: Employee = Depends(require_admin),
 ):
     try:
+        policy = _policy(session, policy_id, company_id)
         version = policy_service.update(
             session,
-            policy=_policy(session, policy_id, company_id),
+            policy=policy,
             actor_id=actor.id,
-            **payload.model_dump(exclude={"rules"}),
+            **payload.model_dump(exclude={"rules", "all_employees", "group_ids"}),
             rules=[rule.model_dump() for rule in payload.rules],
         )
+        if payload.all_employees is not None:
+            group_service.set_policy_audience(
+                session,
+                policy=policy,
+                all_employees=payload.all_employees,
+                group_ids=payload.group_ids or [],
+                effective_from=payload.effective_from,
+                actor_id=actor.id,
+            )
     except policy_service.PolicyError as exc:
+        session.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from None
+    except group_service.GroupError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     session.commit()
     return version
 

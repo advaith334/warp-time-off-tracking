@@ -69,6 +69,9 @@ class PolicyOut(Out):
     created_by: str
     current_version: PolicyVersionOut
     version_count: int
+    all_employees: bool
+    group_ids: list[str]
+    group_names: list[str]
 
     @classmethod
     def of(cls, policy, current):
@@ -81,6 +84,9 @@ class PolicyOut(Out):
                 "created_by": policy.created_by,
                 "current_version": current,
                 "version_count": len(policy.versions),
+                "all_employees": policy.all_employees,
+                "group_ids": [target.group_id for target in policy.group_targets],
+                "group_names": [target.group.name for target in policy.group_targets],
             }
         )
 
@@ -95,6 +101,18 @@ class AssignmentOut(Out):
     effective_from: date
     effective_to: date | None
     created_by: str
+
+
+class GroupMemberOut(Out):
+    employee_id: str
+    employee_name: str
+    employment_type: str
+
+
+class EmployeeGroupOut(Out):
+    id: str
+    name: str
+    members: list[GroupMemberOut]
 
 
 class BalanceOut(Out):

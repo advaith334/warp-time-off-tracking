@@ -7,6 +7,9 @@ This guide sits beside [`models.py`](models.py), the SQLAlchemy source of truth.
 ```mermaid
 erDiagram
     TIME_OFF_CATEGORIES ||--o{ POLICIES : classifies
+    EMPLOYEE_GROUPS ||--o{ EMPLOYEE_GROUP_MEMBERS : contains
+    EMPLOYEE_GROUPS ||--o{ POLICY_GROUP_TARGETS : selected_by
+    POLICIES ||--o{ POLICY_GROUP_TARGETS : targets
     POLICIES ||--o{ POLICY_VERSIONS : versions
     POLICY_VERSIONS ||--o{ ACCRUAL_RULES : contains
     POLICIES ||--o{ POLICY_ASSIGNMENTS : assigned_by
@@ -27,10 +30,13 @@ erDiagram
 | Table | Purpose | Load-bearing invariant |
 | --- | --- | --- |
 | `time_off_categories` | Vacation, Sick, Maternity, and other company labels | Name is unique per company. |
+| `employee_groups` | Reusable company-defined audiences | Name is unique per company. |
+| `employee_group_members` | Company-managed employee classification | An employee belongs to at most one group per company. |
 | `policies` | Stable identity for one category policy | Version history hangs from one identity. |
+| `policy_group_targets` | Multi-select policy audience | A group targets a policy at most once. |
 | `policy_versions` | Effective-dated configuration | Version number and effective date are unique per policy. |
 | `accrual_rules` | Time or payroll rates, including tenure tiers | Every rule belongs to exactly one version. |
-| `policy_assignments` | Arbitrary employee-to-policy groups | PostgreSQL excludes overlapping category ranges. |
+| `policy_assignments` | Effective-dated policy eligibility materialized from audiences | PostgreSQL excludes overlapping category ranges. |
 | `ledger_entries` | Credits, debits, expiry, carryover, and reversal | Source type plus source ID is unique; services never update entries. |
 | `balance_snapshots` | Rebuildable balance and pending-hold cache | Ledger wins if the snapshot ever disagrees. |
 | `time_off_requests` | Frozen total and workflow status | Status changes only through request service transitions. |

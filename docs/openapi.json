@@ -393,6 +393,57 @@
         "title": "DecisionIn",
         "type": "object"
       },
+      "EmployeeGroupMembershipIn": {
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          }
+        },
+        "required": [
+          "effective_from"
+        ],
+        "title": "EmployeeGroupMembershipIn",
+        "type": "object"
+      },
+      "EmployeeGroupOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "members"
+        ],
+        "title": "EmployeeGroupOut",
+        "type": "object"
+      },
       "EmployeeOut": {
         "properties": {
           "email": {
@@ -467,6 +518,72 @@
         ],
         "title": "EntryType",
         "type": "string"
+      },
+      "GroupCreateIn": {
+        "properties": {
+          "employee_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Employee Ids",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GroupCreateIn",
+        "type": "object"
+      },
+      "GroupMemberOut": {
+        "properties": {
+          "employee_id": {
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "employee_name": {
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "employment_type": {
+            "title": "Employment Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "employee_id",
+          "employee_name",
+          "employment_type"
+        ],
+        "title": "GroupMemberOut",
+        "type": "object"
+      },
+      "GroupMembersIn": {
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "employee_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Employee Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "effective_from"
+        ],
+        "title": "GroupMembersIn",
+        "type": "object"
       },
       "HTTPValidationError": {
         "properties": {
@@ -687,8 +804,38 @@
         "title": "PayrollAccrualIn",
         "type": "object"
       },
+      "PolicyAudienceIn": {
+        "properties": {
+          "all_employees": {
+            "default": false,
+            "title": "All Employees",
+            "type": "boolean"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "effective_from"
+        ],
+        "title": "PolicyAudienceIn",
+        "type": "object"
+      },
       "PolicyCreateIn": {
         "properties": {
+          "all_employees": {
+            "title": "All Employees",
+            "type": "boolean"
+          },
           "allow_negative": {
             "default": false,
             "title": "Allow Negative",
@@ -724,6 +871,13 @@
             "default": false,
             "title": "Expires At Period End",
             "type": "boolean"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Ids",
+            "type": "array"
           },
           "kind": {
             "$ref": "#/components/schemas/PolicyKind"
@@ -772,7 +926,8 @@
           "name",
           "category_id",
           "effective_from",
-          "kind"
+          "kind",
+          "all_employees"
         ],
         "title": "PolicyCreateIn",
         "type": "object"
@@ -787,6 +942,10 @@
       },
       "PolicyOut": {
         "properties": {
+          "all_employees": {
+            "title": "All Employees",
+            "type": "boolean"
+          },
           "category_id": {
             "title": "Category Id",
             "type": "string"
@@ -801,6 +960,20 @@
           },
           "current_version": {
             "$ref": "#/components/schemas/PolicyVersionOut"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "group_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Names",
+            "type": "array"
           },
           "id": {
             "title": "Id",
@@ -822,13 +995,27 @@
           "category_name",
           "created_by",
           "current_version",
-          "version_count"
+          "version_count",
+          "all_employees",
+          "group_ids",
+          "group_names"
         ],
         "title": "PolicyOut",
         "type": "object"
       },
       "PolicyUpdateIn": {
         "properties": {
+          "all_employees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Employees"
+          },
           "allow_negative": {
             "default": false,
             "title": "Allow Negative",
@@ -860,6 +1047,20 @@
             "default": false,
             "title": "Expires At Period End",
             "type": "boolean"
+          },
+          "group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Ids"
           },
           "kind": {
             "$ref": "#/components/schemas/PolicyKind"
@@ -2148,6 +2349,61 @@
         ]
       }
     },
+    "/api/employees/{employee_id}/group": {
+      "put": {
+        "operationId": "set_employee_group_api_employees__employee_id__group_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeGroupMembershipIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Employee Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
     "/api/employees/{employee_id}/ledger": {
       "get": {
         "operationId": "ledger_api_employees__employee_id__ledger_get",
@@ -2217,6 +2473,211 @@
         "summary": "Ledger",
         "tags": [
           "balances"
+        ]
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "operationId": "list_groups_api_groups_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EmployeeGroupOut"
+                  },
+                  "title": "Response List Groups Api Groups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Groups",
+        "tags": [
+          "groups"
+        ]
+      },
+      "post": {
+        "operationId": "create_group_api_groups_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_group_api_groups__group_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/members": {
+      "put": {
+        "operationId": "replace_group_members_api_groups__group_id__members_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembersIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Group Members",
+        "tags": [
+          "groups"
         ]
       }
     },
@@ -2683,6 +3144,68 @@
         "summary": "Assign",
         "tags": [
           "assignments"
+        ]
+      }
+    },
+    "/api/policies/{policy_id}/audience": {
+      "put": {
+        "operationId": "set_policy_audience_api_policies__policy_id__audience_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyAudienceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Policy Audience",
+        "tags": [
+          "groups"
         ]
       }
     },

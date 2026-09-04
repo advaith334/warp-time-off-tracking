@@ -35,6 +35,8 @@ class PolicyCreateIn(AdvancedPolicyFields):
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE
     allow_negative: bool = False
     negative_floor_minutes: int = Field(default=0, le=0)
+    all_employees: bool
+    group_ids: list[str] = Field(default_factory=list)
 
 
 class PolicyUpdateIn(AdvancedPolicyFields):
@@ -46,6 +48,8 @@ class PolicyUpdateIn(AdvancedPolicyFields):
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE
     allow_negative: bool = False
     negative_floor_minutes: int = Field(default=0, le=0)
+    all_employees: bool | None = None
+    group_ids: list[str] | None = None
 
 
 class PayrollAccrualIn(BaseModel):
@@ -92,6 +96,27 @@ class AssignIn(BaseModel):
 
 class EndAssignmentIn(BaseModel):
     effective_to: date
+
+
+class GroupCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    employee_ids: list[str] = Field(default_factory=list)
+
+
+class GroupMembersIn(BaseModel):
+    employee_ids: list[str] = Field(default_factory=list)
+    effective_from: date
+
+
+class EmployeeGroupMembershipIn(BaseModel):
+    group_id: str | None = None
+    effective_from: date
+
+
+class PolicyAudienceIn(BaseModel):
+    all_employees: bool = False
+    group_ids: list[str] = Field(default_factory=list)
+    effective_from: date
 
 
 class HolidayIn(BaseModel):

@@ -25,6 +25,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | `/api/employees` | Read demo directory | Read demo directory | Company adapter |
 | `/api/categories`, `/api/policies` | Read | Read and write | Company |
+| `/api/groups`, `/api/groups/{id}/members` | Forbidden | Create, update, and remove | Company + group |
+| `/api/policies/{id}/audience` | Forbidden | Set all employees or selected groups | Company + policy |
 | `/api/policies/{id}/assignments` | Forbidden | Read and write | Company + policy |
 | `/api/employees/{id}/assignments` | Self | Read | Company + employee |
 | `/api/employees/{id}/balances` | Self | Any company employee | Employee + company |

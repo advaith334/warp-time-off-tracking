@@ -243,6 +243,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employees/{employee_id}/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Employee Group */
+        put: operations["set_employee_group_api_employees__employee_id__group_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employees/{employee_id}/ledger": {
         parameters: {
             query?: never;
@@ -253,6 +270,58 @@ export interface paths {
         /** Ledger */
         get: operations["ledger_api_employees__employee_id__ledger_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Groups */
+        get: operations["list_groups_api_groups_get"];
+        put?: never;
+        /** Create Group */
+        post: operations["create_group_api_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group */
+        delete: operations["delete_group_api_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/groups/{group_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Group Members */
+        put: operations["replace_group_members_api_groups__group_id__members_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -362,6 +431,23 @@ export interface paths {
         put?: never;
         /** Assign */
         post: operations["assign_api_policies__policy_id__assignments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/policies/{policy_id}/audience": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Policy Audience */
+        put: operations["set_policy_audience_api_policies__policy_id__audience_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -602,6 +688,25 @@ export interface components {
             /** Note */
             note?: string | null;
         };
+        /** EmployeeGroupMembershipIn */
+        EmployeeGroupMembershipIn: {
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Group Id */
+            group_id?: string | null;
+        };
+        /** EmployeeGroupOut */
+        EmployeeGroupOut: {
+            /** Id */
+            id: string;
+            /** Members */
+            members: components["schemas"]["GroupMemberOut"][];
+            /** Name */
+            name: string;
+        };
         /** EmployeeOut */
         EmployeeOut: {
             /** Email */
@@ -637,6 +742,32 @@ export interface components {
          * @enum {string}
          */
         EntryType: "ACCRUAL" | "FORFEITURE" | "CARRYOVER" | "EXPIRATION" | "REQUEST_DEBIT" | "REQUEST_REVERSAL";
+        /** GroupCreateIn */
+        GroupCreateIn: {
+            /** Employee Ids */
+            employee_ids?: string[];
+            /** Name */
+            name: string;
+        };
+        /** GroupMemberOut */
+        GroupMemberOut: {
+            /** Employee Id */
+            employee_id: string;
+            /** Employee Name */
+            employee_name: string;
+            /** Employment Type */
+            employment_type: string;
+        };
+        /** GroupMembersIn */
+        GroupMembersIn: {
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Employee Ids */
+            employee_ids?: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -737,8 +868,25 @@ export interface components {
              */
             period_end: string;
         };
+        /** PolicyAudienceIn */
+        PolicyAudienceIn: {
+            /**
+             * All Employees
+             * @default false
+             */
+            all_employees: boolean;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Group Ids */
+            group_ids?: string[];
+        };
         /** PolicyCreateIn */
         PolicyCreateIn: {
+            /** All Employees */
+            all_employees: boolean;
             /**
              * Allow Negative
              * @default false
@@ -763,6 +911,8 @@ export interface components {
              * @default false
              */
             expires_at_period_end: boolean;
+            /** Group Ids */
+            group_ids?: string[];
             kind: components["schemas"]["PolicyKind"];
             /** Max Balance Minutes */
             max_balance_minutes?: number | null;
@@ -787,6 +937,8 @@ export interface components {
         PolicyKind: "UNLIMITED" | "ACCRUAL";
         /** PolicyOut */
         PolicyOut: {
+            /** All Employees */
+            all_employees: boolean;
             /** Category Id */
             category_id: string;
             /** Category Name */
@@ -794,6 +946,10 @@ export interface components {
             /** Created By */
             created_by: string;
             current_version: components["schemas"]["PolicyVersionOut"];
+            /** Group Ids */
+            group_ids: string[];
+            /** Group Names */
+            group_names: string[];
             /** Id */
             id: string;
             /** Name */
@@ -803,6 +959,8 @@ export interface components {
         };
         /** PolicyUpdateIn */
         PolicyUpdateIn: {
+            /** All Employees */
+            all_employees?: boolean | null;
             /**
              * Allow Negative
              * @default false
@@ -822,6 +980,8 @@ export interface components {
              * @default false
              */
             expires_at_period_end: boolean;
+            /** Group Ids */
+            group_ids?: string[] | null;
             kind: components["schemas"]["PolicyKind"];
             /** Max Balance Minutes */
             max_balance_minutes?: number | null;
@@ -1514,6 +1674,41 @@ export interface operations {
             };
         };
     };
+    set_employee_group_api_employees__employee_id__group_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path: {
+                employee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmployeeGroupMembershipIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     ledger_api_employees__employee_id__ledger_get: {
         parameters: {
             query?: {
@@ -1536,6 +1731,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LedgerEntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_groups_api_groups_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeGroupOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_group_api_groups_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_api_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_group_members_api_groups__group_id__members_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupMembersIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeGroupOut"];
                 };
             };
             /** @description Validation Error */
@@ -1830,6 +2159,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_policy_audience_api_policies__policy_id__audience_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-actor-id"?: string;
+            };
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyAudienceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyOut"];
                 };
             };
             /** @description Validation Error */

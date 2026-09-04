@@ -1,6 +1,6 @@
 # External integration boundaries
 
-The take-home uses deterministic in-process adapters so business behavior is runnable without credentials. Services depend on their small interfaces, not on copied external records.
+The Employee, Company, and Payroll services are given assumptions in the take-home. Deterministic in-process adapters make the behavior runnable without redesigning those systems; production replaces only the adapter implementation.
 
 ## Boundary map
 
@@ -22,6 +22,17 @@ flowchart LR
 | [`employee_service.py`](employee_service.py) | Employees, managers, hire dates, workday lengths | Employee-directory client with cache and timeouts |
 | [`payroll_service.py`](payroll_service.py) | Deterministic payroll event fixture | Queue/webhook consumer calling the same idempotent service |
 | [`holiday_source.py`](holiday_source.py) | Observed US holiday dates | Company calendar provider or HR configuration |
+
+## Assumptions consumed
+
+| Assumption | Value used here |
+| --- | --- |
+| Standard workday | Monday-Friday, 9am-5pm: five weekdays and 480 minutes. |
+| Employee data | Read on demand from the Employee adapter; group memberships store stable IDs only. |
+| Company data | Read on demand from the Company adapter. |
+| `on_payroll_processed` | Adapted to an idempotent payroll-accrual command keyed by payroll run ID. |
+
+Six-hour days are an intentional bonus case. The same Employee adapter supplies `work_days` and `work_minutes_per_day`, so request and accrual math does not create a second scheduling source.
 
 ## Ownership rules
 

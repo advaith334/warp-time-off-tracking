@@ -4,6 +4,7 @@ type ApiSchemas = components['schemas']
 
 // Ergonomic names for the generated OpenAPI response types used by the UI.
 export type Employee = ApiSchemas['EmployeeOut']
+export type EmployeeGroup = ApiSchemas['EmployeeGroupOut']
 export type Category = ApiSchemas['CategoryOut']
 export type Rule = ApiSchemas['AccrualRuleOut']
 export type PolicyVersion = ApiSchemas['PolicyVersionOut']
