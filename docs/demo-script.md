@@ -12,9 +12,9 @@ Run `make api` and `make web` separately, then open <http://localhost:5173>.
 
 ## 0:00–1:00 — employee view and working-day length
 
-Act as **Ada Lovelace**. Her Overview shows Vacation and **No policy set** for Maternity. Switch to
+Act as **Ada Lovelace**. Her **My leave** view shows Vacation and **No policy set** for Maternity. Switch to
 **Alan Turing**: the same 15-day grant is 5,400 minutes because his Employee Service schedule
-defines a six-hour day. Employees see only **My time off** and **My requests**; admin routes also
+defines a six-hour day. Employees see only **My leave** and **My requests**; admin routes also
 enforce `403`, so hidden navigation is not the security boundary.
 
 ## 1:00–2:00 — frozen request and approval
@@ -31,8 +31,10 @@ that created zero entries—the visible proof of replay safety.
 
 ## 3:00–4:00 — time-dependent rules without database editing
 
-Open **Demo**, move the date to `2027-01-02`, and run rollover twice. The first invocation posts
-expiration/carryover; the second creates zero. Run accruals twice to demonstrate the same boundary.
+Use the backend-only reviewer endpoints in <http://localhost:8000/docs> to move the date to
+`2027-01-02` and run rollover twice. The first invocation posts expiration/carryover; the second
+creates zero. Run accruals twice to demonstrate the same boundary. These controls stay out of the
+admin product navigation.
 
 ## 4:00–5:00 — policy history and advanced rules
 
