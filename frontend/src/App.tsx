@@ -17,6 +17,12 @@ const inputClass = 'rounded-lg border border-neutral-300 bg-white px-3 py-2 text
 const buttonClass = 'rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white'
 type Tab = 'overview' | 'requests' | 'policies' | 'audit' | 'demo'
 
+function dayAfter(value: string) {
+  const result = new Date(value + 'T00:00:00Z')
+  result.setUTCDate(result.getUTCDate() + 1)
+  return result.toISOString().slice(0, 10)
+}
+
 export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -37,6 +43,9 @@ export default function App() {
   const [error, setError] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [policyName, setPolicyName] = useState('')
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null)
+  const [effectiveFrom, setEffectiveFrom] = useState('')
+  const [changeReason, setChangeReason] = useState('Policy created')
   const [kind, setKind] = useState<'ACCRUAL' | 'UNLIMITED'>('ACCRUAL')
   const [amount, setAmount] = useState('20')
   const [newHireProration, setNewHireProration] = useState<'PRORATE' | 'FULL' | 'NONE'>('PRORATE')
@@ -84,6 +93,7 @@ export default function App() {
       setHolidays(holidayRows)
       setToday(state.today)
       setDemoDate(state.today)
+      setEffectiveFrom((current) => current || state.today)
       setAuditEmployeeId((current) => current || people.find((person) => !person.is_admin)?.id || '')
       setCategoryId((current) => current || cats[0]?.id || '')
       setRequestCategoryId((current) => current || cats[0]?.id || '')
@@ -128,7 +138,7 @@ export default function App() {
     await load()
   }
 
-  async function createPolicy(event: React.FormEvent) {
+  async function savePolicy(event: React.FormEvent) {
     event.preventDefault()
     const rules = kind === 'UNLIMITED' ? [] : [
       {
@@ -140,18 +150,56 @@ export default function App() {
         accrues_at: 'START_OF_PERIOD', min_tenure_months: Number(tenureMonths),
       }] : []),
     ]
-    await api.post('/policies', {
-      name: policyName, category_id: categoryId, effective_from: today, kind, rules,
-      change_reason: 'Policy created',
+    const policyFields = {
+      name: policyName, effective_from: effectiveFrom, kind, rules,
+      change_reason: changeReason,
       new_hire_proration: newHireProration,
       allow_negative: allowNegative,
       negative_floor_minutes: allowNegative ? Number(negativeFloor) : 0,
       max_balance_minutes: maxBalance ? Number(maxBalance) : null,
       carryover_cap_minutes: carryoverCap ? Number(carryoverCap) : null,
       expires_at_period_end: expires, tenure_transition: 'NEXT_PERIOD',
-    })
+    }
+    if (editingPolicyId) {
+      await api.put('/policies/' + editingPolicyId, policyFields)
+    } else {
+      await api.post('/policies', { ...policyFields, category_id: categoryId })
+    }
     setPolicyName('')
+    setEditingPolicyId(null)
+    setChangeReason('Policy created')
+    setVersions({})
     await load()
+  }
+
+  function beginPolicyUpdate(policy: Policy) {
+    const rules = [...policy.current_version.rules]
+      .sort((left, right) => left.min_tenure_months - right.min_tenure_months)
+    const [base, tier] = rules
+    setEditingPolicyId(policy.id)
+    setPolicyName(policy.name)
+    setCategoryId(policy.category_id)
+    setEffectiveFrom(today > policy.current_version.effective_from
+      ? today
+      : dayAfter(policy.current_version.effective_from))
+    setChangeReason('')
+    setKind(policy.current_version.kind)
+    setAmount(base?.amount ?? '20')
+    setNewHireProration(policy.current_version.new_hire_proration)
+    setAllowNegative(policy.current_version.allow_negative)
+    setNegativeFloor(String(policy.current_version.negative_floor_minutes || -480))
+    setMaxBalance(policy.current_version.max_balance_minutes?.toString() ?? '')
+    setCarryoverCap(policy.current_version.carryover_cap_minutes?.toString() ?? '')
+    setExpires(policy.current_version.expires_at_period_end)
+    setTenureMonths(tier?.min_tenure_months.toString() ?? '')
+    setTenureAmount(tier?.amount ?? '')
+  }
+
+  function cancelPolicyUpdate() {
+    setEditingPolicyId(null)
+    setPolicyName('')
+    setChangeReason('Policy created')
+    setEffectiveFrom(today)
   }
 
   async function syncHolidays() {
@@ -288,10 +336,11 @@ export default function App() {
       {actor?.is_admin && tab === 'policies' && <>
         <section className="grid gap-4 rounded-xl border bg-white p-5 md:grid-cols-2">
           <form onSubmit={createCategory} className="space-y-3"><h2 className="font-semibold">Add category</h2><input className={inputClass + ' w-full'} value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Vacation" required /><button className={buttonClass}>Create category</button></form>
-          <form onSubmit={createPolicy} className="space-y-3">
-            <h2 className="font-semibold">Add policy</h2>
-            <input className={inputClass + ' w-full'} value={policyName} onChange={(event) => setPolicyName(event.target.value)} placeholder="Full-time vacation" required />
-            <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="ACCRUAL">Accrual</option><option value="UNLIMITED">Unlimited</option></select></div>
+          <form onSubmit={savePolicy} className="space-y-3">
+            <h2 className="font-semibold">{editingPolicyId ? 'Create future version' : 'Add policy'}</h2>
+            <input className={inputClass + ' w-full'} value={policyName} onChange={(event) => setPolicyName(event.target.value)} aria-label="Policy name" placeholder="Full-time vacation" required />
+            <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={Boolean(editingPolicyId)} aria-label="Policy category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="ACCRUAL">Accrual</option><option value="UNLIMITED">Unlimited</option></select></div>
+            <div className="grid grid-cols-2 gap-2"><label className="text-xs text-neutral-600">Effective from<input className={inputClass + ' mt-1 w-full'} type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} required /></label><label className="text-xs text-neutral-600">Change reason<input className={inputClass + ' mt-1 w-full'} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Why is this changing?" required /></label></div>
             {kind === 'ACCRUAL' && <div className="grid grid-cols-2 gap-2">
               <input className={inputClass} type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Days per year" placeholder="Days per year" />
               <select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate new hires</option><option value="FULL">Full first period</option><option value="NONE">Start next period</option></select>
@@ -303,13 +352,13 @@ export default function App() {
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allowNegative} onChange={(event) => setAllowNegative(event.target.checked)} /> Allow negative balance</label>
               <input className={inputClass} type="number" max="-1" value={negativeFloor} onChange={(event) => setNegativeFloor(event.target.value)} aria-label="Negative balance floor minutes" placeholder="Negative floor minutes" disabled={!allowNegative} required={allowNegative} />
             </div>}
-            <button className={buttonClass} disabled={!categoryId}>Create policy</button>
+            <div className="flex gap-2"><button className={buttonClass} disabled={!categoryId}>{editingPolicyId ? 'Save new version' : 'Create policy'}</button>{editingPolicyId && <button className={inputClass} type="button" onClick={cancelPolicyUpdate}>Cancel edit</button>}</div>
           </form>
           <div className="flex items-center justify-between gap-3 md:col-span-2"><p className="text-sm text-neutral-600">{holidays.length ? `${holidays.length} holidays loaded` : 'No holidays loaded.'}</p><button className={buttonClass} type="button" onClick={() => void syncHolidays()}>Sync observed holidays</button></div>
         </section>
         <section className="space-y-3">
           {policies.map((policy) => <article key={policy.id} className="rounded-xl border bg-white p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold">{policy.name}</h2><p className="text-sm text-neutral-500">{policy.category_name} · {policy.current_version.kind.toLowerCase()} · v{policy.current_version.version_no}</p></div><select className={inputClass} defaultValue="" onChange={(event) => { if (event.target.value) void assign(policy.id, event.target.value) }} aria-label={'Assign employee to ' + policy.name}><option value="">Assign employee…</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold">{policy.name}</h2><p className="text-sm text-neutral-500">{policy.category_name} · {policy.current_version.kind.toLowerCase()} · v{policy.current_version.version_no}</p></div><div className="flex flex-wrap gap-2"><button className={inputClass} type="button" onClick={() => beginPolicyUpdate(policy)} aria-label={'New version for ' + policy.name}>New version</button><select className={inputClass} defaultValue="" onChange={(event) => { if (event.target.value) void assign(policy.id, event.target.value) }} aria-label={'Assign employee to ' + policy.name}><option value="">Assign employee…</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div></div>
             <details className="mt-3 text-xs text-neutral-600" onToggle={(event) => { if (event.currentTarget.open) void loadVersions(policy.id) }}><summary className="cursor-pointer">Version history ({policy.version_count})</summary><ul className="mt-2 space-y-1">{(versions[policy.id] ?? []).map((version) => <li key={version.id}>v{version.version_no} from {version.effective_from} · {version.change_reason} · by {version.created_by}</li>)}</ul></details>
           </article>)}
           {policies.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-neutral-500">No policies yet.</p>}
