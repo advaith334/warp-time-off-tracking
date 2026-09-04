@@ -89,6 +89,54 @@ It runs both test suites, backend and frontend lint, TypeScript checking, a prod
 
 The synchronous modular monolith is deliberate. At higher volume, the same idempotent services can run behind a queue and outbox, while materialized projections accelerate reads without replacing the ledger as source of truth.
 
+### Target production architecture
+
+This is an evolutionary deployment design, not infrastructure currently shipped by this repository. The application remains a modular monolith while compute and background work scale independently.
+
+```mermaid
+flowchart TB
+    Client[Web client] --> Edge[CloudFront + WAF]
+    Edge --> Assets[(S3 static React assets)]
+    Edge --> LB[Application Load Balancer]
+
+    subgraph ECS[Autoscaled ECS / Fargate services]
+        API[Stateless FastAPI tasks]
+        Relay[Transactional outbox relay]
+        Workers[Accrual + integration workers]
+    end
+
+    LB --> API
+    API --> Proxy[RDS Proxy]
+    Workers --> Proxy
+    Relay -- polls outbox --> Proxy
+    Proxy --> Primary[(RDS PostgreSQL Multi-AZ)]
+    Primary -. asynchronous replication .-> Replica[(Read replica)]
+    API -. reporting reads .-> Replica
+
+    Scheduler[EventBridge Scheduler] --> Queue[SQS + dead-letter queue]
+    Relay --> Queue
+    Queue --> Workers
+
+    API --> External[Employee / Company / Payroll / Holiday services]
+    Workers --> External
+    API --> Telemetry[Logs / metrics / traces]
+    Workers --> Telemetry
+    Secrets[Secrets Manager] --> API
+    Secrets --> Workers
+```
+
+| Layer | Scaling and reliability role |
+| --- | --- |
+| CDN, WAF, and load balancer | Cache static assets, protect the edge, and spread API traffic across healthy tasks. |
+| Stateless FastAPI tasks | Scale horizontally without session affinity; authorization remains company-scoped. |
+| RDS Proxy and Multi-AZ PostgreSQL | Pool bursty connections and preserve transactional ledger guarantees through failover. |
+| Transactional outbox, SQS, and workers | Move scheduled accrual and integration work off request paths without losing committed jobs. |
+| Read replica and projections | Isolate reporting traffic while PostgreSQL remains the accounting source of truth. |
+| Dead-letter queue and telemetry | Surface exhausted retries and connect each request, job, and ledger mutation for diagnosis. |
+
+- Partition background work by company or employee and retain the existing idempotency keys for safe retries.
+- Add replicas, projections, and workers in response to measured load rather than splitting domain transactions prematurely.
+
 Production SSO, live payroll webhooks, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
 
 ## Fifteen-minute review path
