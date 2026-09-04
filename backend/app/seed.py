@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import clock, enums
 from app.config import DEMO_COMPANY_ID
 from app.db import SessionLocal
-from app.models import TimeOffCategory
+from app.models import Policy, TimeOffCategory
 from app.services import (
     accrual_service,
     assignment_service,
@@ -21,22 +21,45 @@ DEMO_TODAY = date(2026, 3, 16)
 
 
 def seed(session: Session) -> bool:
-    existing = session.scalar(
-        select(TimeOffCategory.id).where(
-            TimeOffCategory.company_id == DEMO_COMPANY_ID
-        ).limit(1)
-    )
-    if existing:
-        return False
-
-    vacation = TimeOffCategory(
-        company_id=DEMO_COMPANY_ID, name="Vacation", icon="🏝️"
-    )
-    maternity = TimeOffCategory(
-        company_id=DEMO_COMPANY_ID, name="Maternity", icon="🌱"
-    )
-    session.add_all([vacation, maternity])
+    categories = {
+        category.name: category
+        for category in session.scalars(
+            select(TimeOffCategory).where(
+                TimeOffCategory.company_id == DEMO_COMPANY_ID
+            )
+        )
+    }
+    changed = False
+    for name, icon in [
+        ("Vacation", "🏝️"),
+        ("Sick leave", "✚"),
+        ("Maternity leave", "🌱"),
+    ]:
+        if name == "Maternity leave" and name not in categories and "Maternity" in categories:
+            category = categories.pop("Maternity")
+            category.name = name
+            category.icon = icon
+            categories[name] = category
+            changed = True
+            continue
+        if name not in categories:
+            category = TimeOffCategory(
+                company_id=DEMO_COMPANY_ID, name=name, icon=icon
+            )
+            session.add(category)
+            categories[name] = category
+            changed = True
     session.flush()
+    vacation = categories["Vacation"]
+    existing_policy = session.scalar(
+        select(Policy.id).where(
+            Policy.company_id == DEMO_COMPANY_ID,
+            Policy.name == "Core vacation",
+        )
+    )
+    if existing_policy:
+        return changed
+
     policy = policy_service.create(
         session,
         company_id=DEMO_COMPANY_ID,
