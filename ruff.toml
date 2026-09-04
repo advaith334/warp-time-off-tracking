@@ -1,0 +1,40 @@
+# Lint configuration for the backend.
+#
+# `ruff` ships in requirements.txt, so it needs a config that is actually
+# runnable: a linter that reports a wall of red on a clean checkout is one
+# nobody runs. Every ignore below is a deliberate choice with a reason, not a
+# rule silenced because it fired.
+
+line-length = 100
+target-version = "py313"
+extend-exclude = [".venv", "frontend"]
+
+[lint]
+select = [
+    "E",      # pycodestyle
+    "F",      # pyflakes
+    "I",      # import sorting
+    "B",      # bugbear
+    "BLE",    # blind excepts - each one must justify itself
+    "C4",     # comprehensions
+    "UP",     # pyupgrade
+    "DTZ",    # naive-datetime misuse - this codebase is date-sensitive
+    "FURB",   # refurb
+    "RUF",
+]
+ignore = [
+    # FastAPI's whole dependency-injection model is `Depends()`/`Header()` in an
+    # argument default. This rule cannot be satisfied without abandoning it.
+    "B008",
+    # `dict(a=1)` over `{"a": 1}` is used deliberately in the test builders,
+    # where the kwargs form merges with `**overrides` far more readably.
+    "C408",
+]
+
+[lint.per-file-ignores]
+# Tests assert on private helpers and re-export fixtures on purpose.
+"backend/tests/*" = ["E402", "F401"]
+# Migration bodies are machine-written by `alembic revision --autogenerate` and
+# are meant to be regenerated, not hand-formatted. `env.py` is hand-written and
+# is linted normally.
+"backend/migrations/versions/*" = ["E501", "UP007", "UP035", "I001"]
