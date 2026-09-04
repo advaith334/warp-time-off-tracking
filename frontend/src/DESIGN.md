@@ -18,6 +18,7 @@ flowchart TD
 
 - Navigation removes irrelevant actions; the API independently repeats every access check.
 - Switching actors refetches balances and requests under the new server-side scope.
+- Accounting remains minute-based, while the UI converts values to days and hours using each employee's workday.
 
 ## View map
 
@@ -52,6 +53,6 @@ sequenceDiagram
 | [`api/types.ts`](api/types.ts) | Ergonomic aliases to generated response schemas |
 | [`api/schema.d.ts`](api/schema.d.ts) | Generated OpenAPI TypeScript declarations; never hand-edit |
 | [`App.test.tsx`](App.test.tsx) | Reviewer-critical role and policy-control behavior |
-| [`index.css`](index.css) | Tailwind import and small global presentation rules |
+| [`index.css`](index.css) | Responsive layout, accessible focus states, status colors, and component styling |
 
 Run `npm run test`, `npm run lint`, `npm run typecheck`, and `npm run build` from this package, or `make check` from the repository root.

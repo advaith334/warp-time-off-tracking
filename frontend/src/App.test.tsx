@@ -40,6 +40,16 @@ describe('application shell', () => {
                 start_date: '2026-06-01', end_date: '2026-06-02',
                 total_minutes: 960, events: [], days: [],
               }]
+          : path.endsWith('/requests/preview')
+            ? {
+                total_minutes: 1080,
+                available_minutes: 5400,
+                days: [
+                  { date: '2026-06-01', minutes: 360 },
+                  { date: '2026-06-02', minutes: 360 },
+                  { date: '2026-06-03', minutes: 360 },
+                ],
+              }
           : []
       return new Response(JSON.stringify(body), {
         status: 200,
@@ -68,11 +78,10 @@ describe('application shell', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
 
     expect(screen.getByLabelText('New-hire accrual')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Advanced balance rules/ }))
     const allowNegative = screen.getByLabelText('Allow negative balance')
-    const floor = screen.getByLabelText('Negative balance floor minutes')
-    expect(floor).toBeDisabled()
     fireEvent.click(allowNegative)
-    expect(floor).toBeEnabled()
+    expect(screen.getByLabelText('Negative balance floor hours')).toBeEnabled()
   })
 
   it('loads an existing policy into the future-version editor', async () => {
@@ -87,7 +96,7 @@ describe('application shell', () => {
     fireEvent.change(screen.getByLabelText('Change reason'), {
       target: { value: 'Increase allowance' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save new version' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule new version' }))
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
@@ -136,9 +145,24 @@ describe('application shell', () => {
     fireEvent.change(screen.getByLabelText('Acting as'), { target: { value: 'emp_ada' } })
     fireEvent.click(await screen.findByRole('button', { name: 'My requests' }))
 
+    fireEvent.click(screen.getByLabelText('Partial-day request'))
     expect(screen.getByLabelText('Partial hours')).toBeInTheDocument()
     expect(screen.getByLabelText('Partial minutes')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Preview request' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Preview balance impact' })).toBeDisabled()
     expect(await screen.findByRole('button', { name: 'Cancel request' })).toBeInTheDocument()
+  })
+
+  it('shows request previews in days and hours instead of raw minutes', async () => {
+    render(<App />)
+    await screen.findByRole('button', { name: 'Audit' })
+    fireEvent.change(screen.getByLabelText('Acting as'), { target: { value: 'emp_ada' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'My requests' }))
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-06-01' } })
+    fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-06-03' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Preview balance impact' }))
+
+    expect(await screen.findByText(/2 days 2 hours requested/)).toBeInTheDocument()
+    expect(screen.getByText(/11 days 2 hours available/)).toBeInTheDocument()
+    expect(screen.queryByText(/1080 minutes/)).not.toBeInTheDocument()
   })
 })

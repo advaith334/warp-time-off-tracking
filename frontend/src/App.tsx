@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { ApiError, api, setActor } from './api/client'
 import type {
   Balance,
@@ -13,9 +14,63 @@ import type {
   TimeOffRequest,
 } from './api/types'
 
-const inputClass = 'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm'
-const buttonClass = 'rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white'
+const inputClass = 'field-control'
+const buttonClass = 'button button-primary'
+const secondaryButtonClass = 'button button-secondary'
 type Tab = 'overview' | 'requests' | 'policies' | 'audit' | 'demo'
+
+const tabDescriptions: Record<Tab, string> = {
+  overview: 'Balances and policy coverage at a glance',
+  requests: 'Submit, review, and track time-off requests',
+  policies: 'Configure accrual and eligibility rules',
+  audit: 'Follow every balance change back to its source',
+  demo: 'Move time forward and run background jobs',
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(value + 'T00:00:00Z'))
+}
+
+function formatMinutes(minutes: number, dayMinutes = 480) {
+  if (minutes === 0) return '0 hours'
+  const sign = minutes < 0 ? '−' : ''
+  const absolute = Math.abs(minutes)
+  const days = Math.floor(absolute / dayMinutes)
+  const remaining = absolute % dayMinutes
+  const hours = Math.floor(remaining / 60)
+  const leftoverMinutes = remaining % 60
+  const parts = [
+    days ? `${days} ${days === 1 ? 'day' : 'days'}` : '',
+    hours ? `${hours} ${hours === 1 ? 'hour' : 'hours'}` : '',
+    leftoverMinutes ? `${leftoverMinutes} min` : '',
+  ].filter(Boolean)
+  return sign + parts.join(' ')
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return <label className="field-label"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>
+}
+
+function StatusPill({ status }: { status: string }) {
+  return <span className={`status-pill status-${status.toLowerCase()}`}><span />{status.toLowerCase()}</span>
+}
+
+function policySummary(policy: Policy) {
+  if (policy.current_version.kind === 'UNLIMITED') return 'Unlimited time off'
+  const rule = policy.current_version.rules[0]
+  if (!rule) return 'No accrual rule'
+  const amount = Number(rule.amount).toLocaleString('en-US', { maximumFractionDigits: 2 })
+  if (rule.method === 'HOURS_WORKED') {
+    return `${amount} ${rule.unit.toLowerCase()} per ${(rule.per_minutes_worked ?? 0) / 60} hours worked`
+  }
+  const cadence = {
+    DAILY: 'day', WEEKLY: 'week', SEMIMONTHLY: 'half-month',
+    BIWEEKLY: 'two weeks', MONTHLY: 'month', YEARLY: 'year',
+  }[rule.frequency ?? 'YEARLY']
+  return `${amount} ${rule.unit.toLowerCase()}${Number(rule.amount) === 1 ? '' : 's'} per ${cadence}`
+}
 
 function dayAfter(value: string) {
   const result = new Date(value + 'T00:00:00Z')
@@ -41,6 +96,10 @@ export default function App() {
   const [demoResult, setDemoResult] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [busyAction, setBusyAction] = useState('')
+  const [showCategoryForm, setShowCategoryForm] = useState(false)
+  const [showAdvancedPolicy, setShowAdvancedPolicy] = useState(false)
   const [categoryName, setCategoryName] = useState('')
   const [policyName, setPolicyName] = useState('')
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null)
@@ -53,7 +112,7 @@ export default function App() {
   const [perHoursWorked, setPerHoursWorked] = useState('30')
   const [newHireProration, setNewHireProration] = useState<'PRORATE' | 'FULL' | 'NONE'>('PRORATE')
   const [allowNegative, setAllowNegative] = useState(false)
-  const [negativeFloor, setNegativeFloor] = useState('-480')
+  const [negativeFloor, setNegativeFloor] = useState('-8')
   const [tenureMonths, setTenureMonths] = useState('')
   const [tenureAmount, setTenureAmount] = useState('')
   const [maxBalance, setMaxBalance] = useState('')
@@ -63,11 +122,15 @@ export default function App() {
   const [requestCategoryId, setRequestCategoryId] = useState('')
   const [requestStart, setRequestStart] = useState('')
   const [requestEnd, setRequestEnd] = useState('')
+  const [requestReason, setRequestReason] = useState('')
+  const [isPartialDay, setIsPartialDay] = useState(false)
   const [requestHours, setRequestHours] = useState('')
   const [requestMinutes, setRequestMinutes] = useState('')
   const [requestPreview, setRequestPreview] = useState<RequestPreview | null>(null)
 
   const actor = employees.find((employee) => employee.id === actorId)
+  const selectedAuditEmployee = employees.find((employee) => employee.id === auditEmployeeId)
+  const pendingRequests = requests.filter((request) => request.status === 'PENDING')
   const tabs: Array<{ id: Tab; label: string }> = actor?.is_admin
     ? [
         { id: 'overview', label: 'Overview' },
@@ -134,11 +197,28 @@ export default function App() {
     }).catch((caught) => setError(String(caught)))
   }, [actor?.is_admin, auditEmployeeId, tab, today])
 
+  async function perform(action: string, successMessage: string, work: () => Promise<void>) {
+    setBusyAction(action)
+    setError('')
+    setSuccess('')
+    try {
+      await work()
+      setSuccess(successMessage)
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : String(caught))
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function createCategory(event: React.FormEvent) {
     event.preventDefault()
-    await api.post('/categories', { name: categoryName })
-    setCategoryName('')
-    await load()
+    await perform('category', 'Category created.', async () => {
+      await api.post('/categories', { name: categoryName })
+      setCategoryName('')
+      setShowCategoryForm(false)
+      await load()
+    })
   }
 
   async function savePolicy(event: React.FormEvent) {
@@ -166,21 +246,24 @@ export default function App() {
       change_reason: changeReason,
       new_hire_proration: newHireProration,
       allow_negative: allowNegative,
-      negative_floor_minutes: allowNegative ? Number(negativeFloor) : 0,
-      max_balance_minutes: maxBalance ? Number(maxBalance) : null,
-      carryover_cap_minutes: carryoverCap ? Number(carryoverCap) : null,
+      negative_floor_minutes: allowNegative ? Number(negativeFloor) * 60 : 0,
+      max_balance_minutes: maxBalance ? Number(maxBalance) * 60 : null,
+      carryover_cap_minutes: carryoverCap ? Number(carryoverCap) * 60 : null,
       expires_at_period_end: expires, tenure_transition: 'NEXT_PERIOD',
     }
-    if (editingPolicyId) {
-      await api.put('/policies/' + editingPolicyId, policyFields)
-    } else {
-      await api.post('/policies', { ...policyFields, category_id: categoryId })
-    }
-    setPolicyName('')
-    setEditingPolicyId(null)
-    setChangeReason('Policy created')
-    setVersions({})
-    await load()
+    await perform('policy', editingPolicyId ? 'New policy version scheduled.' : 'Policy created.', async () => {
+      if (editingPolicyId) {
+        await api.put('/policies/' + editingPolicyId, policyFields)
+      } else {
+        await api.post('/policies', { ...policyFields, category_id: categoryId })
+      }
+      setPolicyName('')
+      setEditingPolicyId(null)
+      setChangeReason('Policy created')
+      setShowAdvancedPolicy(false)
+      setVersions({})
+      await load()
+    })
   }
 
   function beginPolicyUpdate(policy: Policy) {
@@ -196,19 +279,23 @@ export default function App() {
     setChangeReason('')
     setKind(policy.current_version.kind)
     setAccrualMethod(base?.method ?? 'TIME')
-    setAmount(base?.amount ?? '20')
+    setAmount(base ? String(Number(base.amount)) : '20')
     setFrequency(base?.frequency ?? 'YEARLY')
     setPerHoursWorked(base?.per_minutes_worked
       ? String(base.per_minutes_worked / 60)
       : '30')
     setNewHireProration(policy.current_version.new_hire_proration)
     setAllowNegative(policy.current_version.allow_negative)
-    setNegativeFloor(String(policy.current_version.negative_floor_minutes || -480))
-    setMaxBalance(policy.current_version.max_balance_minutes?.toString() ?? '')
-    setCarryoverCap(policy.current_version.carryover_cap_minutes?.toString() ?? '')
+    setNegativeFloor(String((policy.current_version.negative_floor_minutes || -480) / 60))
+    setMaxBalance(policy.current_version.max_balance_minutes
+      ? String(policy.current_version.max_balance_minutes / 60)
+      : '')
+    setCarryoverCap(policy.current_version.carryover_cap_minutes
+      ? String(policy.current_version.carryover_cap_minutes / 60)
+      : '')
     setExpires(policy.current_version.expires_at_period_end)
     setTenureMonths(tier?.min_tenure_months.toString() ?? '')
-    setTenureAmount(tier?.amount ?? '')
+    setTenureAmount(tier ? String(Number(tier.amount)) : '')
   }
 
   function cancelPolicyUpdate() {
@@ -219,14 +306,17 @@ export default function App() {
   }
 
   async function syncHolidays() {
-    setHolidays(await api.post<Holiday[]>('/holidays/sync?year=' + today.slice(0, 4)))
+    await perform('holidays', 'Holiday calendar synchronized.', async () => {
+      setHolidays(await api.post<Holiday[]>('/holidays/sync?year=' + today.slice(0, 4)))
+    })
   }
 
   async function assign(policyId: string, employeeId: string) {
-    await api.post('/policies/' + policyId + '/assignments', {
-      employee_ids: [employeeId], effective_from: today,
+    await perform('assignment', 'Employee assigned to policy.', async () => {
+      await api.post('/policies/' + policyId + '/assignments', {
+        employee_ids: [employeeId], effective_from: today,
+      })
     })
-    setDemoResult('Assignment saved.')
   }
 
   async function loadVersions(policyId: string) {
@@ -237,10 +327,10 @@ export default function App() {
 
   function requestPayload() {
     return {
-      employee_id: actorId, category_id: requestCategoryId, reason: 'Time off',
+      employee_id: actorId, category_id: requestCategoryId, reason: requestReason || 'Time off',
       start_date: requestStart, end_date: requestEnd,
-      hours: requestHours === '' ? null : Number(requestHours),
-      minutes: requestMinutes === '' ? null : Number(requestMinutes),
+      hours: !isPartialDay || requestHours === '' ? null : Number(requestHours),
+      minutes: !isPartialDay || requestMinutes === '' ? null : Number(requestMinutes),
     }
   }
 
@@ -254,51 +344,60 @@ export default function App() {
   }
 
   async function previewRequest() {
+    setBusyAction('preview')
     try {
       setRequestPreview(await api.post<RequestPreview>('/requests/preview', requestPayload()))
       setError('')
     } catch (caught) {
       setRequestPreview(null)
       setError(caught instanceof ApiError ? caught.message : String(caught))
+    } finally {
+      setBusyAction('')
     }
   }
 
   async function submitRequest(event: React.FormEvent) {
     event.preventDefault()
-    try {
+    await perform('request', 'Request submitted for approval.', async () => {
       await api.post('/requests', requestPayload())
       setRequestPreview(null)
+      setRequestReason('')
+      setRequestStart('')
+      setRequestEnd('')
+      setRequestHours('')
+      setRequestMinutes('')
+      setIsPartialDay(false)
       await refreshSelfService()
-      setError('')
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : String(caught))
-    }
+    })
   }
 
   async function cancelRequest(requestId: string) {
-    try {
+    await perform('cancel-' + requestId, 'Request cancelled and balance restored.', async () => {
       await api.post('/requests/' + requestId + '/cancel')
       await refreshSelfService()
-      setError('')
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : String(caught))
-    }
+    })
   }
 
   async function decide(requestId: string, action: 'approve' | 'deny') {
-    await api.post('/requests/' + requestId + '/' + action, {})
-    setRequests(await api.get<TimeOffRequest[]>('/requests'))
+    await perform(action + '-' + requestId, `Request ${action === 'approve' ? 'approved' : 'denied'}.`, async () => {
+      await api.post('/requests/' + requestId + '/' + action, {})
+      setRequests(await api.get<TimeOffRequest[]>('/requests'))
+    })
   }
 
   async function setClock() {
-    const state = await api.post<{ today: string }>('/dev/clock', { current_date: demoDate })
-    setToday(state.today)
-    setDemoResult('Demo date moved to ' + state.today + '.')
+    await perform('clock', 'Demo date updated.', async () => {
+      const state = await api.post<{ today: string }>('/dev/clock', { current_date: demoDate })
+      setToday(state.today)
+      setDemoResult('Demo date moved to ' + formatDate(state.today) + '.')
+    })
   }
 
   async function runJob(kind: 'accruals' | 'rollover') {
-    const run = await api.post<JobRun>('/dev/' + kind)
-    setDemoResult(`${run.kind} finished: ${run.entries_created} ledger entries created.`)
+    await perform(kind, `${kind === 'accruals' ? 'Accrual' : 'Rollover'} job completed.`, async () => {
+      const run = await api.post<JobRun>('/dev/' + kind)
+      setDemoResult(`${run.kind.toLowerCase()} finished · ${run.entries_created} ledger entries created`)
+    })
   }
 
   const runningLedger = useMemo(() => {
@@ -311,89 +410,169 @@ export default function App() {
   }, [ledger])
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-neutral-500">Northstar Robotics</p>
-          <h1 className="mt-1 text-3xl font-semibold">Time-off policies</h1>
-          {today && <p className="mt-1 text-xs text-neutral-500">Demo date: {today}</p>}
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand-lockup">
+            <div className="brand-mark" aria-hidden="true"><span /></div>
+            <div>
+              <p className="eyebrow">Northstar / People ops</p>
+              <h1>Time-off policies</h1>
+            </div>
+          </div>
+          <div className="identity-switcher">
+            <div className="avatar" aria-hidden="true">{actor?.name?.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'}</div>
+            <label>
+              <span>Viewing as {actor?.is_admin ? 'administrator' : 'employee'}</span>
+              <select aria-label="Acting as" value={actorId} onChange={(event) => {
+                setActorId(event.target.value)
+                setActor(event.target.value)
+                setTab('overview')
+                setError('')
+                setSuccess('')
+              }}>
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.is_admin ? ' (admin)' : ''}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
-        <label className="text-xs text-neutral-600">
-          Acting as
-          <select className={inputClass + ' ml-2'} value={actorId} onChange={(event) => {
-            setActorId(event.target.value)
-            setActor(event.target.value)
-            setTab('overview')
-          }}>
-            {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.is_admin ? ' (admin)' : ''}</option>)}
-          </select>
-        </label>
+        <div className="nav-wrap">
+          <nav aria-label="Product sections">
+            {tabs.map((item, index) => <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => {
+              setTab(item.id)
+              setError('')
+              setSuccess('')
+            }}><span className="nav-index" aria-hidden="true">0{index + 1}</span>{item.label}{item.id === 'requests' && actor?.is_admin && pendingRequests.length > 0 && <span className="nav-count" aria-hidden="true">{pendingRequests.length}</span>}</button>)}
+          </nav>
+          {today && <span className="date-chip"><span aria-hidden="true">SIM</span>{formatDate(today)}</span>}
+        </div>
       </header>
 
-      <nav className="flex flex-wrap gap-2" aria-label="Product sections">
-        {tabs.map((item) => <button key={item.id} className={tab === item.id ? buttonClass : inputClass} onClick={() => setTab(item.id)}>{item.label}</button>)}
-      </nav>
+      <main className="page-content">
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">{actor?.is_admin ? 'Admin workspace' : 'Employee workspace'}</p>
+            <h2>{tabs.find((item) => item.id === tab)?.label}</h2>
+            <p>{tabDescriptions[tab]}</p>
+          </div>
+          {tab === 'overview' && !actor?.is_admin && <button className={buttonClass} type="button" onClick={() => setTab('requests')}>Request time off <span aria-hidden="true">→</span></button>}
+          {tab === 'policies' && actor?.is_admin && <button className={secondaryButtonClass} type="button" onClick={() => setShowCategoryForm((value) => !value)}>{showCategoryForm ? 'Close category form' : '+ New category'}</button>}
+        </div>
 
-      {loading && <p className="rounded-xl border bg-white p-6 text-sm text-neutral-500">Loading time-off data…</p>}
-      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+        {loading && <div className="loading-card"><span className="spinner" />Loading your workspace…</div>}
+        {error && <div className="notice notice-error" role="alert"><div><strong>Something needs attention</strong><p>{error}</p></div><button type="button" aria-label="Dismiss error" onClick={() => setError('')}>×</button></div>}
+        {success && <div className="notice notice-success" role="status"><div><strong>All set</strong><p>{success}</p></div><button type="button" aria-label="Dismiss message" onClick={() => setSuccess('')}>×</button></div>}
 
-      {!loading && tab === 'overview' && (
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {balances.map((balance) => <article key={balance.category_id} className="rounded-xl border bg-white p-5">
-            <p className="text-sm font-medium">{balance.category_name}</p>
-            <p className="mt-2 text-2xl font-semibold">{!balance.has_policy ? 'No policy set' : balance.is_unlimited ? 'Unlimited' : (balance.balance_minutes / balance.day_minutes).toFixed(2) + ' days'}</p>
-            {balance.policy_name && <p className="mt-1 text-xs text-neutral-500">{balance.policy_name}</p>}
-            {balance.pending_hold_minutes > 0 && <p className="mt-2 text-xs text-amber-700">{balance.pending_hold_minutes} minutes pending</p>}
-          </article>)}
-          {balances.length === 0 && <p className="text-sm text-neutral-500">No categories configured.</p>}
-        </section>
-      )}
+        {!loading && tab === 'overview' && actor?.is_admin && (
+          <section className="dashboard-grid">
+            <article className="stat-card accent-violet"><span>Pending approvals</span><strong>{pendingRequests.length}</strong><p>{pendingRequests.length === 1 ? 'request needs' : 'requests need'} a decision</p><button type="button" onClick={() => setTab('requests')}>Review queue →</button></article>
+            <article className="stat-card accent-teal"><span>Active policies</span><strong>{policies.length}</strong><p>Across {categories.length} time-off {categories.length === 1 ? 'category' : 'categories'}</p><button type="button" onClick={() => setTab('policies')}>Manage policies →</button></article>
+            <article className="stat-card accent-amber"><span>Holiday calendar</span><strong>{holidays.length}</strong><p>Observed holidays loaded for {today.slice(0, 4)}</p><button type="button" onClick={() => setTab('policies')}>Review calendar →</button></article>
+            <article className="content-card dashboard-wide">
+              <div className="card-heading"><div><p className="eyebrow">Team snapshot</p><h3>Policy coverage</h3></div><span className="soft-chip">{employees.filter((employee) => !employee.is_admin).length} employees</span></div>
+              <div className="coverage-list">{policies.map((policy) => <div key={policy.id}><span className="category-icon">{policy.category_name.slice(0, 1)}</span><div><strong>{policy.name}</strong><p>{policySummary(policy)}</p></div><span className="version-chip">v{policy.current_version.version_no}</span></div>)}</div>
+            </article>
+          </section>
+        )}
 
-      {actor?.is_admin && tab === 'policies' && <>
-        <section className="grid gap-4 rounded-xl border bg-white p-5 md:grid-cols-2">
-          <form onSubmit={createCategory} className="space-y-3"><h2 className="font-semibold">Add category</h2><input className={inputClass + ' w-full'} value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Vacation" required /><button className={buttonClass}>Create category</button></form>
-          <form onSubmit={savePolicy} className="space-y-3">
-            <h2 className="font-semibold">{editingPolicyId ? 'Create future version' : 'Add policy'}</h2>
-            <input className={inputClass + ' w-full'} value={policyName} onChange={(event) => setPolicyName(event.target.value)} aria-label="Policy name" placeholder="Full-time vacation" required />
-            <div className="grid grid-cols-2 gap-2"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={Boolean(editingPolicyId)} aria-label="Policy category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="ACCRUAL">Accrual</option><option value="UNLIMITED">Unlimited</option></select></div>
-            <div className="grid grid-cols-2 gap-2"><label className="text-xs text-neutral-600">Effective from<input className={inputClass + ' mt-1 w-full'} type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} required /></label><label className="text-xs text-neutral-600">Change reason<input className={inputClass + ' mt-1 w-full'} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Why is this changing?" required /></label></div>
-            {kind === 'ACCRUAL' && <div className="grid grid-cols-2 gap-2">
-              <select className={inputClass} value={accrualMethod} onChange={(event) => setAccrualMethod(event.target.value as typeof accrualMethod)} aria-label="Accrual method"><option value="TIME">Time based</option><option value="HOURS_WORKED">Hours worked</option></select>
-              <input className={inputClass} type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label={accrualMethod === 'TIME' ? 'Days per period' : 'Hours earned'} placeholder={accrualMethod === 'TIME' ? 'Days per period' : 'Hours earned'} required />
-              {accrualMethod === 'TIME' ? <><select className={inputClass} value={frequency} onChange={(event) => setFrequency(event.target.value as typeof frequency)} aria-label="Accrual frequency"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="SEMIMONTHLY">Twice monthly</option><option value="BIWEEKLY">Every two weeks</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select><select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate new hires</option><option value="FULL">Full first period</option><option value="NONE">Start next period</option></select></> : <input className={inputClass} type="number" min="0.01" step="0.01" value={perHoursWorked} onChange={(event) => setPerHoursWorked(event.target.value)} aria-label="Hours worked per accrual" placeholder="Per hours worked" required />}
-              <input className={inputClass} type="number" min="1" value={maxBalance} onChange={(event) => setMaxBalance(event.target.value)} aria-label="Maximum balance minutes" placeholder="Max balance minutes" />
-              <input className={inputClass} type="number" min="0" value={carryoverCap} onChange={(event) => setCarryoverCap(event.target.value)} aria-label="Carryover cap minutes" placeholder="Carryover cap minutes" disabled={expires} />
-              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expires} onChange={(event) => setExpires(event.target.checked)} disabled={Boolean(carryoverCap)} /> Expire yearly</label>
-              <input className={inputClass} type="number" min="1" value={tenureMonths} onChange={(event) => setTenureMonths(event.target.value)} aria-label="Tenure tier months" placeholder="Tier after months" />
-              <input className={inputClass} type="number" min="0.01" step="0.01" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier amount" placeholder="Tier amount" />
-              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allowNegative} onChange={(event) => setAllowNegative(event.target.checked)} /> Allow negative balance</label>
-              <input className={inputClass} type="number" max="-1" value={negativeFloor} onChange={(event) => setNegativeFloor(event.target.value)} aria-label="Negative balance floor minutes" placeholder="Negative floor minutes" disabled={!allowNegative} required={allowNegative} />
-            </div>}
-            <div className="flex gap-2"><button className={buttonClass} disabled={!categoryId}>{editingPolicyId ? 'Save new version' : 'Create policy'}</button>{editingPolicyId && <button className={inputClass} type="button" onClick={cancelPolicyUpdate}>Cancel edit</button>}</div>
+        {!loading && tab === 'overview' && !actor?.is_admin && (
+          <section className="balance-grid">
+            {balances.map((balance, index) => <article key={balance.category_id} className={`balance-card balance-${index % 3}`}>
+              <div className="balance-top"><span className="category-icon">{balance.category_name.slice(0, 1)}</span><span className="soft-chip">{balance.has_policy ? balance.policy_name : 'Not enrolled'}</span></div>
+              <p>{balance.category_name}</p>
+              <strong>{!balance.has_policy ? 'No policy' : balance.is_unlimited ? 'Unlimited' : formatMinutes(balance.available_minutes, balance.day_minutes)}</strong>
+              <span>{!balance.has_policy ? 'Ask an administrator to assign a policy' : balance.is_unlimited ? 'No balance limit' : 'available to request'}</span>
+              {balance.pending_hold_minutes > 0 && <div className="pending-note"><span />{formatMinutes(balance.pending_hold_minutes, balance.day_minutes)} awaiting approval</div>}
+            </article>)}
+            {balances.length === 0 && <div className="empty-state"><div>◌</div><h3>No time-off categories yet</h3><p>Your administrator has not configured any categories.</p></div>}
+          </section>
+        )}
+
+        {actor?.is_admin && tab === 'policies' && <section className="policy-layout">
+          <div className="policy-list-column">
+            {showCategoryForm && <form onSubmit={createCategory} className="content-card compact-form">
+              <div><h3>Add a time-off category</h3><p>Categories group related policies and balances.</p></div>
+              <div className="inline-form"><input className={inputClass} aria-label="Category name" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="e.g. Volunteer leave" required /><button className={buttonClass} disabled={busyAction === 'category'}>{busyAction === 'category' ? 'Creating…' : 'Create'}</button></div>
+            </form>}
+            <div className="section-heading"><div><h3>Current policies</h3><p>{policies.length} configured</p></div><button className={secondaryButtonClass} type="button" onClick={() => void syncHolidays()} disabled={busyAction === 'holidays'}>{busyAction === 'holidays' ? 'Syncing…' : `Sync ${today.slice(0, 4)} holidays`}</button></div>
+            {policies.map((policy) => <article key={policy.id} className="policy-card">
+              <div className="policy-card-top"><span className="category-icon">{policy.category_name.slice(0, 1)}</span><div><h3>{policy.name}</h3><p>{policy.category_name}</p></div><span className="version-chip">v{policy.current_version.version_no}</span></div>
+              <div className="policy-summary"><strong>{policySummary(policy)}</strong><span>Effective {formatDate(policy.current_version.effective_from)}</span></div>
+              <div className="policy-actions"><button className={secondaryButtonClass} type="button" onClick={() => beginPolicyUpdate(policy)} aria-label={'New version for ' + policy.name}>Edit policy</button><select className={inputClass} defaultValue="" disabled={busyAction === 'assignment'} onChange={(event) => { if (event.target.value) void assign(policy.id, event.target.value); event.target.value = '' }} aria-label={'Assign employee to ' + policy.name}><option value="">Assign employee…</option>{employees.filter((employee) => !employee.is_admin).map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div>
+              <details onToggle={(event) => { if (event.currentTarget.open) void loadVersions(policy.id) }}><summary>Version history <span>{policy.version_count}</span></summary><ol>{(versions[policy.id] ?? []).map((version) => <li key={version.id}><span>v{version.version_no}</span><div><strong>{formatDate(version.effective_from)}</strong><p>{version.change_reason}</p></div></li>)}</ol></details>
+            </article>)}
+            {policies.length === 0 && <div className="empty-state"><div>＋</div><h3>Create your first policy</h3><p>Use the policy builder to define how time off is earned.</p></div>}
+          </div>
+
+          <form onSubmit={savePolicy} className="content-card policy-builder">
+            <div className="card-heading"><div><p className="eyebrow">Policy builder</p><h3>{editingPolicyId ? 'Create future version' : 'New policy'}</h3><p>{editingPolicyId ? 'Past balances keep their original rules.' : 'Start with the essentials; advanced rules are optional.'}</p></div>{editingPolicyId && <button className="icon-button" type="button" aria-label="Cancel policy edit" onClick={cancelPolicyUpdate}>×</button>}</div>
+            <fieldset><legend>Basics</legend><div className="form-grid">
+              <Field label="Policy name"><input className={inputClass} value={policyName} onChange={(event) => setPolicyName(event.target.value)} aria-label="Policy name" placeholder="Full-time vacation" required /></Field>
+              <Field label="Category"><select className={inputClass} value={categoryId} onChange={(event) => setCategoryId(event.target.value)} disabled={Boolean(editingPolicyId)} aria-label="Policy category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
+              <Field label="Policy type"><select className={inputClass} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} aria-label="Policy type"><option value="ACCRUAL">Earned balance</option><option value="UNLIMITED">Unlimited</option></select></Field>
+              <Field label="Effective from"><input className={inputClass} type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} required /></Field>
+              <Field label="Change reason" hint="Stored in version history"><input className={inputClass} aria-label="Change reason" value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Why is this changing?" required /></Field>
+            </div></fieldset>
+            {kind === 'ACCRUAL' && <fieldset><legend>How time is earned</legend><div className="form-grid">
+              <Field label="Accrual method"><select className={inputClass} value={accrualMethod} onChange={(event) => setAccrualMethod(event.target.value as typeof accrualMethod)} aria-label="Accrual method"><option value="TIME">On a schedule</option><option value="HOURS_WORKED">Based on hours worked</option></select></Field>
+              <Field label={accrualMethod === 'TIME' ? 'Days earned each period' : 'Hours earned'}><input className={inputClass} type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label={accrualMethod === 'TIME' ? 'Days per period' : 'Hours earned'} required /></Field>
+              {accrualMethod === 'TIME' ? <><Field label="Accrual frequency"><select className={inputClass} value={frequency} onChange={(event) => setFrequency(event.target.value as typeof frequency)} aria-label="Accrual frequency"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="SEMIMONTHLY">Twice monthly</option><option value="BIWEEKLY">Every two weeks</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></Field><Field label="New-hire treatment"><select className={inputClass} value={newHireProration} onChange={(event) => setNewHireProration(event.target.value as typeof newHireProration)} aria-label="New-hire accrual"><option value="PRORATE">Prorate first period</option><option value="FULL">Grant full first period</option><option value="NONE">Start next period</option></select></Field></> : <Field label="For every hours worked"><input className={inputClass} type="number" min="0.01" step="0.01" value={perHoursWorked} onChange={(event) => setPerHoursWorked(event.target.value)} aria-label="Hours worked per accrual" required /></Field>}
+            </div></fieldset>}
+            {kind === 'ACCRUAL' && <div className="advanced-panel"><button type="button" onClick={() => setShowAdvancedPolicy((value) => !value)} aria-expanded={showAdvancedPolicy}><span><strong>Advanced balance rules</strong><small>Caps, carryover, tenure, and overdraft</small></span><span>{showAdvancedPolicy ? '−' : '+'}</span></button>{showAdvancedPolicy && <div className="form-grid advanced-fields">
+              <Field label="Maximum balance" hint="Leave blank for no cap"><div className="input-suffix"><input className={inputClass} type="number" min="0.25" step="0.25" value={maxBalance} onChange={(event) => setMaxBalance(event.target.value)} aria-label="Maximum balance hours" /><span>hours</span></div></Field>
+              <Field label="Carryover limit" hint="Leave blank for no limit"><div className="input-suffix"><input className={inputClass} type="number" min="0" step="0.25" value={carryoverCap} onChange={(event) => setCarryoverCap(event.target.value)} aria-label="Carryover cap hours" disabled={expires} /><span>hours</span></div></Field>
+              <Field label="Tenure tier starts after"><div className="input-suffix"><input className={inputClass} type="number" min="1" value={tenureMonths} onChange={(event) => setTenureMonths(event.target.value)} aria-label="Tenure tier months" /><span>months</span></div></Field>
+              <Field label="Tier accrual amount"><input className={inputClass} type="number" min="0.01" step="0.01" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier amount" /></Field>
+              <label className="check-row"><input type="checkbox" checked={expires} onChange={(event) => setExpires(event.target.checked)} disabled={Boolean(carryoverCap)} /><span><strong>Expire balance yearly</strong><small>Cannot be combined with carryover</small></span></label>
+              <label className="check-row"><input aria-label="Allow negative balance" type="checkbox" checked={allowNegative} onChange={(event) => setAllowNegative(event.target.checked)} /><span><strong>Allow a negative balance</strong><small>Set the lowest permitted balance</small></span></label>
+              {allowNegative && <Field label="Lowest balance"><div className="input-suffix"><input className={inputClass} type="number" max="-0.25" step="0.25" value={negativeFloor} onChange={(event) => setNegativeFloor(event.target.value)} aria-label="Negative balance floor hours" required /><span>hours</span></div></Field>}
+            </div>}</div>}
+            <div className="form-actions"><button className={buttonClass} disabled={!categoryId || busyAction === 'policy'}>{busyAction === 'policy' ? 'Saving…' : editingPolicyId ? 'Schedule new version' : 'Create policy'}</button>{editingPolicyId && <button className={secondaryButtonClass} type="button" onClick={cancelPolicyUpdate}>Cancel</button>}</div>
           </form>
-          <div className="flex items-center justify-between gap-3 md:col-span-2"><p className="text-sm text-neutral-600">{holidays.length ? `${holidays.length} holidays loaded` : 'No holidays loaded.'}</p><button className={buttonClass} type="button" onClick={() => void syncHolidays()}>Sync observed holidays</button></div>
-        </section>
-        <section className="space-y-3">
-          {policies.map((policy) => <article key={policy.id} className="rounded-xl border bg-white p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold">{policy.name}</h2><p className="text-sm text-neutral-500">{policy.category_name} · {policy.current_version.kind.toLowerCase()} · v{policy.current_version.version_no}</p></div><div className="flex flex-wrap gap-2"><button className={inputClass} type="button" onClick={() => beginPolicyUpdate(policy)} aria-label={'New version for ' + policy.name}>New version</button><select className={inputClass} defaultValue="" onChange={(event) => { if (event.target.value) void assign(policy.id, event.target.value) }} aria-label={'Assign employee to ' + policy.name}><option value="">Assign employee…</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div></div>
-            <details className="mt-3 text-xs text-neutral-600" onToggle={(event) => { if (event.currentTarget.open) void loadVersions(policy.id) }}><summary className="cursor-pointer">Version history ({policy.version_count})</summary><ul className="mt-2 space-y-1">{(versions[policy.id] ?? []).map((version) => <li key={version.id}>v{version.version_no} from {version.effective_from} · {version.change_reason} · by {version.created_by}</li>)}</ul></details>
-          </article>)}
-          {policies.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-neutral-500">No policies yet.</p>}
-        </section>
-      </>}
+        </section>}
 
-      {tab === 'requests' && <section className="space-y-4">
-        {!actor?.is_admin && <form onSubmit={submitRequest} className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2 lg:grid-cols-4"><select className={inputClass} value={requestCategoryId} onChange={(event) => { setRequestCategoryId(event.target.value); setRequestPreview(null) }} aria-label="Time-off category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><input className={inputClass} aria-label="Start date" type="date" value={requestStart} onChange={(event) => { setRequestStart(event.target.value); setRequestPreview(null) }} required /><input className={inputClass} aria-label="End date" type="date" value={requestEnd} onChange={(event) => { setRequestEnd(event.target.value); setRequestPreview(null) }} required /><div className="grid grid-cols-2 gap-2"><input className={inputClass} aria-label="Partial hours" type="number" min="0" max="23" value={requestHours} onChange={(event) => { setRequestHours(event.target.value); setRequestPreview(null) }} placeholder="Hours" /><input className={inputClass} aria-label="Partial minutes" type="number" min="0" max="59" value={requestMinutes} onChange={(event) => { setRequestMinutes(event.target.value); setRequestPreview(null) }} placeholder="Minutes" /></div><button className={inputClass} type="button" onClick={() => void previewRequest()} disabled={!requestStart || !requestEnd}>Preview request</button><button className={buttonClass}>Request time off</button>{requestPreview && <p className="self-center text-sm text-neutral-600 sm:col-span-2">{requestPreview.total_minutes} minutes across {requestPreview.days.length} working day{requestPreview.days.length === 1 ? '' : 's'} · {requestPreview.available_minutes} available before this request</p>}</form>}
-        <div className="rounded-xl border bg-white"><h2 className="border-b px-5 py-4 font-semibold">{actor?.is_admin ? 'Approval queue' : 'Request history'}</h2>{requests.map((request) => <div key={request.id} className="border-b px-5 py-3 text-sm last:border-0"><div className="flex flex-wrap items-center gap-3"><span className="font-medium">{request.employee_name}</span><span className="text-neutral-500">{request.start_date} to {request.end_date}</span><span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">{request.status.toLowerCase()}</span>{actor?.is_admin && request.status === 'PENDING' && <span className="ml-auto flex gap-2"><button className={buttonClass} onClick={() => void decide(request.id, 'approve')}>Approve</button><button className={inputClass} onClick={() => void decide(request.id, 'deny')}>Deny</button></span>}{!actor?.is_admin && (request.status === 'PENDING' || request.status === 'APPROVED') && <button className={inputClass + ' ml-auto'} type="button" onClick={() => void cancelRequest(request.id)}>Cancel request</button>}</div><details className="mt-2 text-xs text-neutral-500"><summary>History ({request.events.length})</summary>{request.events.map((event) => <p key={event.at} className="mt-1">{event.from_status ?? 'Created'} → {event.to_status} by {event.actor_id}</p>)}</details></div>)}{requests.length === 0 && <p className="p-5 text-sm text-neutral-500">No requests.</p>}</div>
-      </section>}
+        {tab === 'requests' && <section className="request-layout">
+          {!actor?.is_admin && <form onSubmit={submitRequest} className="content-card request-form">
+            <div className="card-heading"><div><p className="eyebrow">New request</p><h3>Plan your time away</h3><p>Choose your dates and preview the balance impact before submitting.</p></div></div>
+            <div className="form-grid request-fields">
+              <Field label="Time-off type"><select className={inputClass} value={requestCategoryId} onChange={(event) => { setRequestCategoryId(event.target.value); setRequestPreview(null) }} aria-label="Time-off category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
+              <Field label="Reason" hint="Visible to your approver"><input className={inputClass} aria-label="Request reason" value={requestReason} onChange={(event) => setRequestReason(event.target.value)} placeholder="e.g. Family trip" /></Field>
+              <Field label="First day"><input className={inputClass} aria-label="Start date" type="date" min={today} value={requestStart} onChange={(event) => { const value = event.target.value; setRequestStart(value); if (!requestEnd || requestEnd < value) setRequestEnd(value); setRequestPreview(null) }} required /></Field>
+              <Field label="Last day"><input className={inputClass} aria-label="End date" type="date" min={requestStart || today} value={requestEnd} onChange={(event) => { setRequestEnd(event.target.value); setRequestPreview(null) }} required /></Field>
+            </div>
+            <label className="check-row partial-toggle"><input aria-label="Partial-day request" type="checkbox" checked={isPartialDay} onChange={(event) => { setIsPartialDay(event.target.checked); setRequestPreview(null) }} /><span><strong>This is a partial-day request</strong><small>Use this for appointments or part of a shift.</small></span></label>
+            {isPartialDay && <div className="partial-fields"><Field label="Hours"><input className={inputClass} aria-label="Partial hours" type="number" min="0" max="23" value={requestHours} onChange={(event) => { setRequestHours(event.target.value); setRequestPreview(null) }} placeholder="0" /></Field><Field label="Minutes"><input className={inputClass} aria-label="Partial minutes" type="number" min="0" max="59" value={requestMinutes} onChange={(event) => { setRequestMinutes(event.target.value); setRequestPreview(null) }} placeholder="0" /></Field></div>}
+            {requestPreview && <div className="preview-card" role="status"><span className="preview-icon">✓</span><div><strong>{formatMinutes(requestPreview.total_minutes, actor?.work_minutes_per_day)} requested</strong><p>{requestPreview.days.length} working {requestPreview.days.length === 1 ? 'day' : 'days'} · {formatMinutes(requestPreview.available_minutes, actor?.work_minutes_per_day)} available before this request</p></div></div>}
+            <div className="form-actions split-actions"><button className={secondaryButtonClass} type="button" onClick={() => void previewRequest()} disabled={!requestStart || !requestEnd || busyAction === 'preview'}>{busyAction === 'preview' ? 'Calculating…' : 'Preview balance impact'}</button><button className={buttonClass} disabled={!requestStart || !requestEnd || busyAction === 'request'}>{busyAction === 'request' ? 'Submitting…' : 'Submit request'}</button></div>
+          </form>}
+          <div className="content-card request-list">
+            <div className="card-heading"><div><p className="eyebrow">{actor?.is_admin ? 'Team requests' : 'Your activity'}</p><h3>{actor?.is_admin ? 'Approval queue' : 'Request history'}</h3><p>{actor?.is_admin ? `${pendingRequests.length} awaiting a decision` : 'Every request and its current status'}</p></div>{actor?.is_admin && pendingRequests.length > 0 && <span className="soft-chip">{pendingRequests.length} pending</span>}</div>
+            <div className="request-items">{requests.map((request) => <article key={request.id} className="request-item">
+              <div className="request-date"><strong>{new Date(request.start_date + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</strong><span>{new Date(request.start_date + 'T00:00:00Z').getUTCDate()}</span></div>
+              <div className="request-details"><div><strong>{actor?.is_admin ? request.employee_name : categories.find((category) => category.id === request.category_id)?.name || 'Time off'}</strong><StatusPill status={request.status} /></div><p>{formatDate(request.start_date)}{request.end_date !== request.start_date ? ` – ${formatDate(request.end_date)}` : ''} · {formatMinutes(request.total_minutes, actor?.work_minutes_per_day)}</p>{request.reason && <span>“{request.reason}”</span>}<details><summary>View history ({request.events.length})</summary>{request.events.map((event) => <p key={event.at}>{event.from_status ?? 'Created'} → {event.to_status} · {formatDate(event.at.slice(0, 10))}</p>)}</details></div>
+              {actor?.is_admin && request.status === 'PENDING' && <div className="request-actions"><button className={buttonClass} disabled={Boolean(busyAction)} onClick={() => void decide(request.id, 'approve')}>{busyAction === 'approve-' + request.id ? 'Approving…' : 'Approve'}</button><button className={secondaryButtonClass} disabled={Boolean(busyAction)} onClick={() => void decide(request.id, 'deny')}>{busyAction === 'deny-' + request.id ? 'Denying…' : 'Deny'}</button></div>}
+              {!actor?.is_admin && (request.status === 'PENDING' || request.status === 'APPROVED') && <button className="text-button danger" type="button" disabled={Boolean(busyAction)} onClick={() => void cancelRequest(request.id)}>{busyAction === 'cancel-' + request.id ? 'Cancelling…' : 'Cancel request'}</button>}
+            </article>)}</div>
+            {requests.length === 0 && <div className="empty-state"><div>✓</div><h3>{actor?.is_admin ? 'Approval queue is clear' : 'No requests yet'}</h3><p>{actor?.is_admin ? 'There are no requests waiting for a decision.' : 'Submitted requests will appear here.'}</p></div>}
+          </div>
+        </section>}
 
-      {actor?.is_admin && tab === 'audit' && <section className="space-y-4">
-        <div className="flex items-center gap-3"><h2 className="font-semibold">Explain a balance</h2><select className={inputClass} value={auditEmployeeId} onChange={(event) => setAuditEmployeeId(event.target.value)}>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div>
-        <div className="overflow-x-auto rounded-xl border bg-white"><table className="w-full text-left text-xs"><thead><tr className="border-b"><th className="p-3">Date</th><th>Entry</th><th>Source</th><th className="text-right">Amount</th><th className="p-3 text-right">Running</th></tr></thead><tbody>{runningLedger.map((entry) => <tr key={entry.id} className="border-b last:border-0"><td className="p-3">{entry.effective_date}</td><td>{entry.entry_type}</td><td>{entry.note ?? entry.source_type}</td><td className="text-right">{entry.amount_minutes}</td><td className="p-3 text-right font-medium">{entry.running}</td></tr>)}</tbody></table>{ledger.length === 0 && <p className="p-5 text-sm text-neutral-500">No ledger entries for this employee.</p>}</div>
-        <div className="rounded-xl border bg-white"><h2 className="border-b px-5 py-3 font-semibold">Job runs</h2>{jobRuns.map((run) => <p key={run.id} className="border-b px-5 py-2 text-xs last:border-0">{run.kind} · {run.source_id} · {run.status} · {run.entries_created} entries</p>)}{jobRuns.length === 0 && <p className="p-5 text-sm text-neutral-500">No jobs have run.</p>}</div>
-      </section>}
+        {actor?.is_admin && tab === 'audit' && <section className="audit-layout">
+          <div className="content-card">
+            <div className="card-heading"><div><p className="eyebrow">Balance ledger</p><h3>Explain a balance</h3><p>Every adjustment is recorded in chronological order.</p></div><select className={inputClass} aria-label="Employee to audit" value={auditEmployeeId} onChange={(event) => setAuditEmployeeId(event.target.value)}>{employees.filter((employee) => !employee.is_admin).map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></div>
+            <div className="table-wrap"><table><thead><tr><th>Date</th><th>Entry</th><th>Source</th><th>Change</th><th>Running balance</th></tr></thead><tbody>{runningLedger.map((entry) => <tr key={entry.id}><td>{formatDate(entry.effective_date)}</td><td><span className="entry-chip">{entry.entry_type.toLowerCase().replaceAll('_', ' ')}</span></td><td>{entry.note ?? entry.source_type.toLowerCase().replaceAll('_', ' ')}</td><td className={entry.amount_minutes >= 0 ? 'positive-value' : 'negative-value'}>{entry.amount_minutes >= 0 ? '+' : ''}{formatMinutes(entry.amount_minutes, selectedAuditEmployee?.work_minutes_per_day)}</td><td><strong>{formatMinutes(entry.running, selectedAuditEmployee?.work_minutes_per_day)}</strong></td></tr>)}</tbody></table></div>
+            {ledger.length === 0 && <div className="empty-state"><div>≡</div><h3>No balance activity</h3><p>This employee does not have any ledger entries yet.</p></div>}
+          </div>
+          <div className="content-card job-card"><div className="card-heading"><div><p className="eyebrow">Operations</p><h3>Recent job runs</h3></div></div>{jobRuns.map((run) => <div className="job-row" key={run.id}><span className="job-icon">↻</span><div><strong>{run.kind.toLowerCase()} run</strong><p>{run.source_id}</p></div><StatusPill status={run.status} /><span>{run.entries_created} entries</span></div>)}{jobRuns.length === 0 && <p className="muted-copy">No background jobs have run yet.</p>}</div>
+        </section>}
 
-      {actor?.is_admin && tab === 'demo' && <section className="space-y-4 rounded-xl border bg-white p-5"><div><h2 className="font-semibold">Demo controls</h2><p className="text-xs text-neutral-500">Move the simulated date, then invoke the same retry-safe services production cron would call.</p></div><div className="flex flex-wrap gap-2"><input className={inputClass} type="date" value={demoDate} onChange={(event) => setDemoDate(event.target.value)} /><button className={buttonClass} onClick={() => void setClock()}>Set date</button><button className={buttonClass} onClick={() => void runJob('accruals')}>Run accruals</button><button className={buttonClass} onClick={() => void runJob('rollover')}>Run rollover</button></div>{demoResult && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{demoResult}</p>}</section>}
-    </main>
+        {actor?.is_admin && tab === 'demo' && <section className="demo-grid">
+          <article className="content-card demo-card"><span className="step-number">1</span><div><h3>Choose a simulated date</h3><p>Move the demo clock without changing your computer’s date.</p><Field label="Demo date"><input className={inputClass} aria-label="Demo date" type="date" value={demoDate} onChange={(event) => setDemoDate(event.target.value)} /></Field><button className={buttonClass} disabled={busyAction === 'clock'} onClick={() => void setClock()}>{busyAction === 'clock' ? 'Updating…' : 'Set demo date'}</button></div></article>
+          <article className="content-card demo-card"><span className="step-number">2</span><div><h3>Run accruals</h3><p>Post every scheduled credit due through the selected date.</p><button className={buttonClass} disabled={busyAction === 'accruals'} onClick={() => void runJob('accruals')}>{busyAction === 'accruals' ? 'Running…' : 'Run accrual job'}</button></div></article>
+          <article className="content-card demo-card"><span className="step-number">3</span><div><h3>Run year-end rollover</h3><p>Apply carryover caps or expiry rules for completed periods.</p><button className={secondaryButtonClass} disabled={busyAction === 'rollover'} onClick={() => void runJob('rollover')}>{busyAction === 'rollover' ? 'Running…' : 'Run rollover job'}</button></div></article>
+          {demoResult && <div className="demo-result"><span>✓</span><p>{demoResult}</p></div>}
+        </section>}
+      </main>
+    </div>
   )
 }
