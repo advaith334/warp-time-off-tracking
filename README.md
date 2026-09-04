@@ -87,7 +87,48 @@ It runs both test suites, backend and frontend lint, TypeScript checking, a prod
 
 ## Scope and scaling
 
-The synchronous modular monolith is deliberate. At higher volume, the same idempotent services can run behind a queue and outbox, while materialized projections accelerate reads without replacing the ledger as source of truth.
+The synchronous modular monolith is deliberate. At higher volume, the same idempotent services can run in queue-backed workers without replacing the ledger as the source of truth.
+
+### Target production architecture
+
+This is a right-sized production target, not infrastructure currently shipped by this repository. It keeps the modular monolith and adds only the components needed to scale API traffic and background jobs independently.
+
+```mermaid
+flowchart TB
+    Client[Web client]
+    Frontend[Static React hosting]
+    LB[Application Load Balancer]
+
+    subgraph ECS[ECS / Fargate]
+        API[Stateless FastAPI tasks]
+        Workers[Background workers]
+    end
+
+    Client -- loads app --> Frontend
+    Client -- API requests --> LB
+    LB --> API
+    API --> Proxy[RDS Proxy]
+    Proxy --> Primary[(RDS PostgreSQL Multi-AZ)]
+
+    Scheduler[EventBridge Scheduler] --> Queue[SQS queue]
+    Queue --> Workers
+    Workers --> Proxy
+
+    API --> External[Employee / Company / Payroll / Holiday services]
+    Workers --> External
+```
+
+The workload should be read-heavy overall, with write bursts during scheduled and payroll accruals.
+
+| Pressure | Response |
+| --- | --- |
+| Interactive reads and writes | Use the primary for consistent balances and approvals. |
+| Accrual bursts | Queue idempotent work by company or employee. |
+| Reporting reads | Add a replica or projection when the primary shows contention. |
+| Ledger growth | Partition the ledger before considering sharding. |
+| Primary write limit | Shard by company only after measured need. |
+
+CDN, WAF, caching, and an outbox are later additions, not baseline requirements.
 
 Production SSO, live payroll webhooks, notifications, distributed scheduling, and partial time spread over several dates are intentionally deferred. Reasons and extension points are recorded in the [edge-case contract](docs/edge-cases.md).
 
