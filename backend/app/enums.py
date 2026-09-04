@@ -35,8 +35,15 @@ class NewHireProration(StrEnum):
     NONE = "NONE"
 
 
+class TenureTransition(StrEnum):
+    NEXT_PERIOD = "NEXT_PERIOD"
+
+
 class EntryType(StrEnum):
     ACCRUAL = "ACCRUAL"
+    FORFEITURE = "FORFEITURE"
+    CARRYOVER = "CARRYOVER"
+    EXPIRATION = "EXPIRATION"
     REQUEST_DEBIT = "REQUEST_DEBIT"
     REQUEST_REVERSAL = "REQUEST_REVERSAL"
 
@@ -46,11 +53,13 @@ class SourceType(StrEnum):
     PAYROLL_ACCRUAL = "PAYROLL_ACCRUAL"
     REQUEST = "REQUEST"
     REQUEST_CANCELLATION = "REQUEST_CANCELLATION"
+    PERIOD_ROLLOVER = "PERIOD_ROLLOVER"
 
 
 class JobKind(StrEnum):
     SCHEDULED = "SCHEDULED"
     PAYROLL = "PAYROLL"
+    ROLLOVER = "ROLLOVER"
 
 
 class RequestStatus(StrEnum):
