@@ -8,6 +8,7 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 | Case | Status | Behavior / evidence |
 |---|---|---|
 | Policy settings change | Handled | A future-effective immutable version is appended; `test_future_policy_version_changes_only_future_accrual_periods`. |
+| Common calendar cadences | Handled | Daily, weekly, semimonthly, biweekly, monthly, and yearly periods tile without gaps; `test_additional_accrual_cadences_tile_without_gaps`. |
 | Arbitrary employee group | Handled | Assignment rows, not employment-type columns; `test_arbitrary_employee_lists_become_assignment_rows`. |
 | Policies overlap in one category | Handled | Inclusive PostgreSQL exclusion constraint, including one-day ranges; `test_a_one_day_assignment_still_blocks_an_overlap`. |
 | No policy for a category | Handled | Balance API returns `has_policy: false`; requests fail clearly; `test_seed_creates_one_coherent_idempotent_demo_story` and `test_a_category_without_a_policy_rejects_requests_clearly`. |
@@ -16,6 +17,7 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 | Payroll replay | Handled | Payroll run ID is part of the source key; `test_payroll_replay_cannot_credit_the_same_work_twice`. |
 | Accrual exceeds cap | Handled | Credit and forfeiture are separate entries; `test_balance_cap_keeps_credit_and_forfeiture_explainable`. |
 | Six-hour employee | Handled | Day conversion reads Employee Service; `test_six_hour_employee_uses_a_six_hour_day_for_accrual_and_requests`. |
+| Unlimited policy | Handled | Requests skip balance checks and approvals post no debit; `test_unlimited_policy_needs_no_balance_and_posts_no_debit`. |
 | Month-end and leap-day hire | Decided | Calendar-anchored periods tile regardless of hire day; `test_monthly_periods_tile_for_month_end_and_leap_day_hires`. |
 | Tenure changes mid-period | Decided | New tier begins at the next period boundary; `test_tenure_tier_starts_on_the_first_future_period_boundary`. |
 | Rollover replay | Handled | Expiry/carryover keys include employee, policy, year, and leg; `test_rollover_replay_is_a_no_op_and_expiry_is_separate_from_carryover`. |
@@ -40,6 +42,7 @@ Every discovered case is **Handled** with a named test, **Decided** with deliber
 | Holiday changes after submission | Decided | Frozen request-day costs remain; reconciliation is a future admin action; `test_holiday_changes_after_submission_do_not_reprice_frozen_request_days`. |
 | Cross-year leave | Handled | Debit and reversal split by year; `test_cross_year_request_debits_and_reverses_each_policy_year`. |
 | Employee guesses another URL | Handled | Server returns `403`; `test_an_employee_cannot_read_another_employees_requests`. |
+| Cross-company resource ID | Handled | Actor company scopes request, assignment, employee, balance, and ledger routes; `test_company_scoped_routes_hide_another_companys_records`. |
 
 ## Deliberately deferred
 

@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from itertools import pairwise
 
+import pytest
 from app import enums
 from app.api.deps import get_actor
 from app.db import get_session
@@ -297,6 +298,30 @@ def test_monthly_periods_tile_for_month_end_and_leap_day_hires():
         assert periods[0].start <= hire <= periods[0].end
         for earlier, later in pairwise(periods):
             assert later.start == earlier.end + timedelta(days=1)
+
+
+@pytest.mark.parametrize(
+    "schedule",
+    [
+        enums.Schedule.DAILY,
+        enums.Schedule.WEEKLY,
+        enums.Schedule.SEMIMONTHLY,
+        enums.Schedule.BIWEEKLY,
+    ],
+)
+def test_additional_accrual_cadences_tile_without_gaps(schedule):
+    start = date(2026, 1, 1)
+    periods = list(
+        iter_periods(
+            start,
+            date(2026, 2, 5),
+            schedule,
+            pay_period_anchor=date(2026, 1, 5),
+        )
+    )
+    assert periods[0].start <= start <= periods[0].end
+    for earlier, later in pairwise(periods):
+        assert later.start == earlier.end + timedelta(days=1)
 
 
 def test_cross_year_request_debits_and_reverses_each_policy_year(session):

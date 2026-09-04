@@ -80,6 +80,18 @@ def test_arbitrary_employee_lists_become_assignment_rows(session):
     assert [row.employee_id for row in rows] == ["emp_ada", "emp_alan"]
 
 
+def test_an_unknown_employee_cannot_be_assigned(session):
+    policy = _policy(session)
+    with pytest.raises(assignment_service.AssignmentError, match="Unknown employee"):
+        assignment_service.assign(
+            session,
+            policy=policy,
+            employee_ids=["emp_missing"],
+            effective_from=date(2026, 1, 1),
+            actor_id="adm_lindsey",
+        )
+
+
 def test_a_one_day_assignment_still_blocks_an_overlap(session):
     policy = _policy(session)
     first = PolicyAssignment(

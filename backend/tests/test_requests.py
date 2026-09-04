@@ -146,6 +146,38 @@ def test_negative_balance_is_disabled_by_default_and_respects_an_explicit_floor(
     assert request.total_minutes == 480
 
 
+def test_unlimited_policy_needs_no_balance_and_posts_no_debit(session):
+    category = TimeOffCategory(company_id="cmp_warp_demo", name="Unlimited vacation")
+    session.add(category)
+    session.flush()
+    policy = policy_service.create(
+        session,
+        company_id="cmp_warp_demo",
+        actor_id="adm_lindsey",
+        name="Unlimited vacation",
+        category_id=category.id,
+        effective_from=date(2026, 1, 1),
+        kind=enums.PolicyKind.UNLIMITED,
+        change_reason="Initial policy",
+        rules=[],
+    )
+    assignment_service.assign(
+        session,
+        policy=policy,
+        employee_ids=["emp_ada"],
+        effective_from=date(2026, 1, 1),
+        actor_id="adm_lindsey",
+    )
+
+    request = _submit(session, category)
+    request_service.decide(
+        session, request=request, approve=True, actor_id="adm_lindsey", note=None
+    )
+
+    assert request.status == enums.RequestStatus.APPROVED
+    assert session.scalar(select(func.count()).select_from(LedgerEntry)) == 0
+
+
 def test_pending_and_approved_requests_block_overlapping_dates(session):
     category, _ = _setup(session)
     first = _submit(session, category)

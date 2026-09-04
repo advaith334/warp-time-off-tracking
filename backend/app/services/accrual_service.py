@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import enums
 from app.domain.accrual import completed_tenure_months, payroll_amount, scheduled_amount
 from app.domain.periods import iter_periods
-from app.integrations import employee_service
+from app.integrations import company_service, employee_service
 from app.models import JobRun, PolicyAssignment
 from app.services import ledger_service, policy_service
 
@@ -54,6 +54,7 @@ def _post_accrual(
 
 def run_scheduled(session: Session, *, company_id: str, as_of: date) -> JobRun:
     created = 0
+    company = company_service.get(company_id)
     assignments = session.scalars(
         select(PolicyAssignment).where(
             PolicyAssignment.company_id == company_id,
@@ -69,7 +70,12 @@ def run_scheduled(session: Session, *, company_id: str, as_of: date) -> JobRun:
                 if rule.method != enums.AccrualMethod.TIME or rule.frequency is None:
                     continue
                 first = max(eligible_from, version.effective_from)
-                for period in iter_periods(first, through, rule.frequency):
+                for period in iter_periods(
+                    first,
+                    through,
+                    rule.frequency,
+                    pay_period_anchor=company.pay_period_anchor,
+                ):
                     nominal = (
                         period.start
                         if rule.accrues_at == enums.AccruesAt.START_OF_PERIOD

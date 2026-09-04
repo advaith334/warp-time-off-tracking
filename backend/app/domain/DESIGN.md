@@ -7,7 +7,7 @@ Modules here turn explicit inputs into deterministic outputs. They do not open s
 | Module | Inputs | Output / decision |
 | --- | --- | --- |
 | [`units.py`](units.py) | Decimal amount, unit, employee day length | Exact integer minutes |
-| [`periods.py`](periods.py) | Date and monthly/yearly cadence | Continuous calendar periods |
+| [`periods.py`](periods.py) | Date, cadence, and pay-period anchor | Continuous calendar periods |
 | [`accrual.py`](accrual.py) | Rate, period, eligibility, proration | Scheduled or payroll-earned minutes |
 | [`rules.py`](rules.py) | Policy kind and accrual rules | Validated business configuration |
 | [`requests.py`](requests.py) | Date range, workweek, holidays, partial minutes | Frozen charged dates and minutes |

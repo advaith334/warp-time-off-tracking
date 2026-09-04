@@ -16,8 +16,11 @@ def list_employees(company_id: str = Depends(get_company_id)):
 
 
 @router.get("/{employee_id}", response_model=EmployeeOut)
-def get_employee(employee_id: str):
+def get_employee(employee_id: str, company_id: str = Depends(get_company_id)):
     try:
-        return employee_service.get(employee_id)
+        employee = employee_service.get(employee_id)
     except LookupError:
         raise HTTPException(status_code=404, detail="Unknown employee") from None
+    if employee.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Unknown employee")
+    return employee

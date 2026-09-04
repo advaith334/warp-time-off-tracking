@@ -13,6 +13,26 @@ describe('application shell', () => {
           ]
         : path.endsWith('/dev/state')
           ? { today: '2026-03-16' }
+          : path.endsWith('/categories')
+            ? [{ id: 'cat_vacation', name: 'Vacation', icon: null }]
+          : path.endsWith('/policies')
+            ? [{
+                id: 'pol_vacation', name: 'Vacation', category_id: 'cat_vacation',
+                category_name: 'Vacation', created_by: 'adm_lindsey', version_count: 1,
+                current_version: {
+                  id: 'ver_1', version_no: 1, effective_from: '2026-01-01',
+                  kind: 'ACCRUAL', created_by: 'adm_lindsey', change_reason: 'Initial',
+                  created_at: '2026-01-01T00:00:00Z', new_hire_proration: 'PRORATE',
+                  allow_negative: false, negative_floor_minutes: 0,
+                  max_balance_minutes: null, carryover_cap_minutes: null,
+                  expires_at_period_end: false, tenure_transition: 'NEXT_PERIOD',
+                  rules: [{
+                    id: 'rule_1', method: 'TIME', amount: '20', unit: 'DAY',
+                    frequency: 'YEARLY', accrues_at: 'START_OF_PERIOD',
+                    per_minutes_worked: null, min_tenure_months: 0,
+                  }],
+                },
+              }]
           : path.endsWith('/requests')
             ? [{
                 id: 'req_1', employee_id: 'emp_ada', employee_name: 'Ada',
@@ -53,6 +73,61 @@ describe('application shell', () => {
     expect(floor).toBeDisabled()
     fireEvent.click(allowNegative)
     expect(floor).toBeEnabled()
+  })
+
+  it('loads an existing policy into the future-version editor', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'New version for Vacation' }))
+
+    expect(screen.getByRole('heading', { name: 'Create future version' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Policy name')).toHaveValue('Vacation')
+    expect(screen.getByLabelText('Effective from')).toHaveValue('2026-03-16')
+    expect(screen.getByLabelText('Change reason')).toBeRequired()
+    fireEvent.change(screen.getByLabelText('Change reason'), {
+      target: { value: 'Increase allowance' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save new version' }))
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/policies/pol_vacation',
+        expect.objectContaining({ method: 'PUT' }),
+      )
+    })
+  })
+
+  it('configures an hours-worked policy without calendar fields', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Policies' }))
+    fireEvent.change(screen.getByLabelText('Policy name'), {
+      target: { value: 'Hourly sick leave' },
+    })
+    fireEvent.change(screen.getByLabelText('Accrual method'), {
+      target: { value: 'HOURS_WORKED' },
+    })
+    fireEvent.change(screen.getByLabelText('Hours earned'), {
+      target: { value: '1' },
+    })
+    fireEvent.change(screen.getByLabelText('Hours worked per accrual'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create policy' }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([path, init]) =>
+        path === '/api/policies' && init?.method === 'POST')
+      expect(call).toBeDefined()
+      const body = JSON.parse(String(call?.[1]?.body))
+      expect(body.rules[0]).toMatchObject({
+        method: 'HOURS_WORKED',
+        amount: '1',
+        unit: 'HOUR',
+        frequency: null,
+        accrues_at: null,
+        per_minutes_worked: 1800,
+      })
+    })
   })
 
   it('exposes preview, partial-day, and cancellation controls to employees', async () => {

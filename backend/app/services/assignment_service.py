@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.integrations import employee_service
 from app.models import Policy, PolicyAssignment
 
 
@@ -23,6 +24,12 @@ def assign(
 ) -> list[PolicyAssignment]:
     created = []
     for employee_id in employee_ids:
+        try:
+            employee = employee_service.get(employee_id)
+        except LookupError:
+            raise AssignmentError(f"Unknown employee {employee_id!r}.") from None
+        if employee.company_id != policy.company_id:
+            raise AssignmentError(f"Employee {employee_id!r} belongs to another company.")
         row = PolicyAssignment(
             company_id=policy.company_id,
             employee_id=employee_id,
@@ -44,9 +51,10 @@ def assign(
 
 
 def assignments_for_employee(
-    session: Session, *, employee_id: str, on_date: date | None = None
+    session: Session, *, company_id: str, employee_id: str, on_date: date | None = None
 ) -> list[PolicyAssignment]:
     query = select(PolicyAssignment).where(
+        PolicyAssignment.company_id == company_id,
         PolicyAssignment.employee_id == employee_id
     )
     if on_date:
@@ -59,10 +67,11 @@ def assignments_for_employee(
 
 
 def assignment_for_category(
-    session: Session, *, employee_id: str, category_id: str, on_date: date
+    session: Session, *, company_id: str, employee_id: str, category_id: str, on_date: date
 ) -> PolicyAssignment | None:
     return session.execute(
         select(PolicyAssignment).where(
+            PolicyAssignment.company_id == company_id,
             PolicyAssignment.employee_id == employee_id,
             PolicyAssignment.category_id == category_id,
             PolicyAssignment.effective_from <= on_date,

@@ -1190,6 +1190,10 @@
       },
       "Schedule": {
         "enum": [
+          "DAILY",
+          "WEEKLY",
+          "SEMIMONTHLY",
+          "BIWEEKLY",
           "MONTHLY",
           "YEARLY"
         ],
@@ -1650,6 +1654,18 @@
     "/api/categories": {
       "get": {
         "operationId": "categories_api_categories_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1664,6 +1680,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Categories",
@@ -1904,6 +1930,18 @@
     "/api/employees": {
       "get": {
         "operationId": "list_employees_api_employees_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1918,6 +1956,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Employees",
@@ -1936,6 +1984,16 @@
             "required": true,
             "schema": {
               "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
               "type": "string"
             }
           }
@@ -2197,6 +2255,16 @@
               "title": "Year",
               "type": "integer"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2341,6 +2409,18 @@
     "/api/policies": {
       "get": {
         "operationId": "policies_api_policies_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2355,6 +2435,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Policies",
@@ -2606,6 +2696,16 @@
             "required": true,
             "schema": {
               "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-actor-id",
+            "required": false,
+            "schema": {
+              "default": "adm_lindsey",
+              "title": "X-Actor-Id",
               "type": "string"
             }
           }
