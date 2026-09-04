@@ -1,7 +1,162 @@
-"""SQLAlchemy metadata; product tables are added beside their behavior."""
+"""Database models introduced beside the behavior that uses them."""
 
-from sqlalchemy.orm import DeclarativeBase
+from __future__ import annotations
+
+import uuid
+from datetime import date, datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    literal_column,
+)
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from app import enums
+
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+
+def _enum(enum_type, name: str):
+    return Enum(
+        enum_type,
+        name=name,
+        native_enum=False,
+        length=32,
+        values_callable=lambda members: [member.value for member in members],
+    )
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TimeOffCategory(Base, TimestampMixin):
+    __tablename__ = "time_off_categories"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(16))
+
+    policies: Mapped[list[Policy]] = relationship(back_populates="category")
+    __table_args__ = (
+        UniqueConstraint("company_id", "name", name="uq_category_name_per_company"),
+    )
+
+
+class Policy(Base, TimestampMixin):
+    __tablename__ = "policies"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    category_id: Mapped[str] = mapped_column(ForeignKey("time_off_categories.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    category: Mapped[TimeOffCategory] = relationship(back_populates="policies")
+    versions: Mapped[list[PolicyVersion]] = relationship(
+        back_populates="policy",
+        order_by="PolicyVersion.version_no",
+        cascade="all, delete-orphan",
+    )
+    assignments: Mapped[list[PolicyAssignment]] = relationship(back_populates="policy")
+    __table_args__ = (
+        UniqueConstraint("company_id", "name", name="uq_policy_name_per_company"),
+    )
+
+
+class PolicyVersion(Base, TimestampMixin):
+    __tablename__ = "policy_versions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policies.id"), nullable=False, index=True)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    kind: Mapped[enums.PolicyKind] = mapped_column(
+        _enum(enums.PolicyKind, "policy_kind"), nullable=False
+    )
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    change_reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+    policy: Mapped[Policy] = relationship(back_populates="versions")
+    rules: Mapped[list[AccrualRule]] = relationship(
+        back_populates="version", cascade="all, delete-orphan"
+    )
+    __table_args__ = (
+        UniqueConstraint("policy_id", "version_no", name="uq_policy_version_number"),
+        UniqueConstraint("policy_id", "effective_from", name="uq_policy_version_effective_date"),
+    )
+
+
+class AccrualRule(Base):
+    __tablename__ = "accrual_rules"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    policy_version_id: Mapped[str] = mapped_column(
+        ForeignKey("policy_versions.id"), nullable=False, index=True
+    )
+    method: Mapped[enums.AccrualMethod] = mapped_column(
+        _enum(enums.AccrualMethod, "accrual_method"), nullable=False
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
+    unit: Mapped[enums.RateUnit] = mapped_column(
+        _enum(enums.RateUnit, "rate_unit"), nullable=False
+    )
+    frequency: Mapped[enums.Schedule | None] = mapped_column(
+        _enum(enums.Schedule, "accrual_schedule")
+    )
+    accrues_at: Mapped[enums.AccruesAt | None] = mapped_column(
+        _enum(enums.AccruesAt, "accrues_at")
+    )
+
+    version: Mapped[PolicyVersion] = relationship(back_populates="rules")
+
+
+class PolicyAssignment(Base, TimestampMixin):
+    __tablename__ = "policy_assignments"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    employee_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policies.id"), nullable=False)
+    category_id: Mapped[str] = mapped_column(ForeignKey("time_off_categories.id"), nullable=False)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    effective_to: Mapped[date | None] = mapped_column(Date)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    policy: Mapped[Policy] = relationship(back_populates="assignments")
+    __table_args__ = (
+        ExcludeConstraint(
+            ("employee_id", "="),
+            ("category_id", "="),
+            (
+                func.daterange(
+                    effective_from,
+                    func.coalesce(effective_to, literal_column("'infinity'::date")),
+                    "[]",
+                ),
+                "&&",
+            ),
+            name="ex_no_overlapping_assignment_per_category",
+            using="gist",
+        ),
+    )
