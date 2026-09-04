@@ -9,6 +9,7 @@ import type {
   LedgerEntry,
   Policy,
   PolicyVersion,
+  RequestPreview,
   TimeOffRequest,
 } from './api/types'
 
@@ -50,6 +51,9 @@ export default function App() {
   const [requestCategoryId, setRequestCategoryId] = useState('')
   const [requestStart, setRequestStart] = useState('')
   const [requestEnd, setRequestEnd] = useState('')
+  const [requestHours, setRequestHours] = useState('')
+  const [requestMinutes, setRequestMinutes] = useState('')
+  const [requestPreview, setRequestPreview] = useState<RequestPreview | null>(null)
 
   const actor = employees.find((employee) => employee.id === actorId)
   const tabs: Array<{ id: Tab; label: string }> = actor?.is_admin
@@ -167,13 +171,54 @@ export default function App() {
     setVersions((current) => ({ ...current, [policyId]: rows }))
   }
 
-  async function submitRequest(event: React.FormEvent) {
-    event.preventDefault()
-    await api.post('/requests', {
+  function requestPayload() {
+    return {
       employee_id: actorId, category_id: requestCategoryId, reason: 'Time off',
       start_date: requestStart, end_date: requestEnd,
-    })
-    setRequests(await api.get<TimeOffRequest[]>('/requests'))
+      hours: requestHours === '' ? null : Number(requestHours),
+      minutes: requestMinutes === '' ? null : Number(requestMinutes),
+    }
+  }
+
+  async function refreshSelfService() {
+    const [requestRows, balanceRows] = await Promise.all([
+      api.get<TimeOffRequest[]>('/requests'),
+      api.get<Balance[]>('/employees/' + actorId + '/balances?on_date=' + today),
+    ])
+    setRequests(requestRows)
+    setBalances(balanceRows)
+  }
+
+  async function previewRequest() {
+    try {
+      setRequestPreview(await api.post<RequestPreview>('/requests/preview', requestPayload()))
+      setError('')
+    } catch (caught) {
+      setRequestPreview(null)
+      setError(caught instanceof ApiError ? caught.message : String(caught))
+    }
+  }
+
+  async function submitRequest(event: React.FormEvent) {
+    event.preventDefault()
+    try {
+      await api.post('/requests', requestPayload())
+      setRequestPreview(null)
+      await refreshSelfService()
+      setError('')
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : String(caught))
+    }
+  }
+
+  async function cancelRequest(requestId: string) {
+    try {
+      await api.post('/requests/' + requestId + '/cancel')
+      await refreshSelfService()
+      setError('')
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : String(caught))
+    }
   }
 
   async function decide(requestId: string, action: 'approve' | 'deny') {
@@ -272,8 +317,8 @@ export default function App() {
       </>}
 
       {tab === 'requests' && <section className="space-y-4">
-        {!actor?.is_admin && <form onSubmit={submitRequest} className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-4"><select className={inputClass} value={requestCategoryId} onChange={(event) => setRequestCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><input className={inputClass} type="date" value={requestStart} onChange={(event) => setRequestStart(event.target.value)} required /><input className={inputClass} type="date" value={requestEnd} onChange={(event) => setRequestEnd(event.target.value)} required /><button className={buttonClass}>Request time off</button></form>}
-        <div className="rounded-xl border bg-white"><h2 className="border-b px-5 py-4 font-semibold">{actor?.is_admin ? 'Approval queue' : 'Request history'}</h2>{requests.map((request) => <div key={request.id} className="border-b px-5 py-3 text-sm last:border-0"><div className="flex flex-wrap items-center gap-3"><span className="font-medium">{request.employee_name}</span><span className="text-neutral-500">{request.start_date} to {request.end_date}</span><span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">{request.status.toLowerCase()}</span>{actor?.is_admin && request.status === 'PENDING' && <span className="ml-auto flex gap-2"><button className={buttonClass} onClick={() => void decide(request.id, 'approve')}>Approve</button><button className={inputClass} onClick={() => void decide(request.id, 'deny')}>Deny</button></span>}</div><details className="mt-2 text-xs text-neutral-500"><summary>History ({request.events.length})</summary>{request.events.map((event) => <p key={event.at} className="mt-1">{event.from_status ?? 'Created'} → {event.to_status} by {event.actor_id}</p>)}</details></div>)}{requests.length === 0 && <p className="p-5 text-sm text-neutral-500">No requests.</p>}</div>
+        {!actor?.is_admin && <form onSubmit={submitRequest} className="grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2 lg:grid-cols-4"><select className={inputClass} value={requestCategoryId} onChange={(event) => { setRequestCategoryId(event.target.value); setRequestPreview(null) }} aria-label="Time-off category">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><input className={inputClass} aria-label="Start date" type="date" value={requestStart} onChange={(event) => { setRequestStart(event.target.value); setRequestPreview(null) }} required /><input className={inputClass} aria-label="End date" type="date" value={requestEnd} onChange={(event) => { setRequestEnd(event.target.value); setRequestPreview(null) }} required /><div className="grid grid-cols-2 gap-2"><input className={inputClass} aria-label="Partial hours" type="number" min="0" max="23" value={requestHours} onChange={(event) => { setRequestHours(event.target.value); setRequestPreview(null) }} placeholder="Hours" /><input className={inputClass} aria-label="Partial minutes" type="number" min="0" max="59" value={requestMinutes} onChange={(event) => { setRequestMinutes(event.target.value); setRequestPreview(null) }} placeholder="Minutes" /></div><button className={inputClass} type="button" onClick={() => void previewRequest()} disabled={!requestStart || !requestEnd}>Preview request</button><button className={buttonClass}>Request time off</button>{requestPreview && <p className="self-center text-sm text-neutral-600 sm:col-span-2">{requestPreview.total_minutes} minutes across {requestPreview.days.length} working day{requestPreview.days.length === 1 ? '' : 's'} · {requestPreview.available_minutes} available before this request</p>}</form>}
+        <div className="rounded-xl border bg-white"><h2 className="border-b px-5 py-4 font-semibold">{actor?.is_admin ? 'Approval queue' : 'Request history'}</h2>{requests.map((request) => <div key={request.id} className="border-b px-5 py-3 text-sm last:border-0"><div className="flex flex-wrap items-center gap-3"><span className="font-medium">{request.employee_name}</span><span className="text-neutral-500">{request.start_date} to {request.end_date}</span><span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">{request.status.toLowerCase()}</span>{actor?.is_admin && request.status === 'PENDING' && <span className="ml-auto flex gap-2"><button className={buttonClass} onClick={() => void decide(request.id, 'approve')}>Approve</button><button className={inputClass} onClick={() => void decide(request.id, 'deny')}>Deny</button></span>}{!actor?.is_admin && (request.status === 'PENDING' || request.status === 'APPROVED') && <button className={inputClass + ' ml-auto'} type="button" onClick={() => void cancelRequest(request.id)}>Cancel request</button>}</div><details className="mt-2 text-xs text-neutral-500"><summary>History ({request.events.length})</summary>{request.events.map((event) => <p key={event.at} className="mt-1">{event.from_status ?? 'Created'} → {event.to_status} by {event.actor_id}</p>)}</details></div>)}{requests.length === 0 && <p className="p-5 text-sm text-neutral-500">No requests.</p>}</div>
       </section>}
 
       {actor?.is_admin && tab === 'audit' && <section className="space-y-4">
