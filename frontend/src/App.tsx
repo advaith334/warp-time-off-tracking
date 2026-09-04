@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, setActor } from './api/client'
-import type { Balance, Category, Employee, Policy, TimeOffRequest } from './api/types'
+import type { Balance, Category, Employee, Holiday, Policy, TimeOffRequest } from './api/types'
 
 const inputClass = 'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm'
 const buttonClass = 'rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white'
@@ -16,6 +16,12 @@ export default function App() {
   const [policyName, setPolicyName] = useState('')
   const [kind, setKind] = useState<'ACCRUAL' | 'UNLIMITED'>('ACCRUAL')
   const [amount, setAmount] = useState('20')
+  const [tenureMonths, setTenureMonths] = useState('')
+  const [tenureAmount, setTenureAmount] = useState('')
+  const [maxBalance, setMaxBalance] = useState('')
+  const [carryoverCap, setCarryoverCap] = useState('')
+  const [expires, setExpires] = useState(false)
+  const [holidays, setHolidays] = useState<Holiday[]>([])
   const [categoryId, setCategoryId] = useState('')
   const [error, setError] = useState('')
   const [requestCategoryId, setRequestCategoryId] = useState('')
@@ -24,14 +30,17 @@ export default function App() {
 
   async function load() {
     try {
-      const [people, cats, policyRows] = await Promise.all([
+      const year = new Date().getFullYear()
+      const [people, cats, policyRows, holidayRows] = await Promise.all([
         api.get<Employee[]>('/employees'),
         api.get<Category[]>('/categories'),
         api.get<Policy[]>('/policies'),
+        api.get<Holiday[]>('/holidays?year=' + year),
       ])
       setEmployees(people)
       setCategories(cats)
       setPolicies(policyRows)
+      setHolidays(holidayRows)
       setCategoryId((current) => current || cats[0]?.id || '')
       setRequestCategoryId((current) => current || cats[0]?.id || '')
       setError('')
@@ -66,9 +75,16 @@ export default function App() {
 
   async function createPolicy(event: React.FormEvent) {
     event.preventDefault()
-    const rules = kind === 'UNLIMITED' ? [] : [{
-      method: 'TIME', amount, unit: 'DAY', frequency: 'YEARLY', accrues_at: 'START_OF_PERIOD',
-    }]
+    const rules = kind === 'UNLIMITED' ? [] : [
+      {
+        method: 'TIME', amount, unit: 'DAY', frequency: 'YEARLY',
+        accrues_at: 'START_OF_PERIOD', min_tenure_months: 0,
+      },
+      ...(tenureMonths && tenureAmount ? [{
+        method: 'TIME', amount: tenureAmount, unit: 'DAY', frequency: 'YEARLY',
+        accrues_at: 'START_OF_PERIOD', min_tenure_months: Number(tenureMonths),
+      }] : []),
+    ]
     await api.post('/policies', {
       name: policyName,
       category_id: categoryId,
@@ -76,9 +92,18 @@ export default function App() {
       kind,
       rules,
       change_reason: 'Policy created',
+      max_balance_minutes: maxBalance ? Number(maxBalance) : null,
+      carryover_cap_minutes: carryoverCap ? Number(carryoverCap) : null,
+      expires_at_period_end: expires,
+      tenure_transition: 'NEXT_PERIOD',
     })
     setPolicyName('')
     await load()
+  }
+
+  async function syncHolidays() {
+    const year = new Date().getFullYear()
+    setHolidays(await api.post<Holiday[]>('/holidays/sync?year=' + year))
   }
 
   async function assign(policyId: string, employeeId: string) {
@@ -171,10 +196,29 @@ export default function App() {
               </select>
             </div>
             {kind === 'ACCRUAL' && (
-              <input className={inputClass + ' w-full'} type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Days per year" />
+              <div className="grid grid-cols-2 gap-2">
+                <input className={inputClass} type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Days per year" placeholder="Days per year" />
+                <input className={inputClass} type="number" min="1" value={maxBalance} onChange={(event) => setMaxBalance(event.target.value)} aria-label="Maximum balance minutes" placeholder="Max balance minutes" />
+                <input className={inputClass} type="number" min="0" value={carryoverCap} onChange={(event) => setCarryoverCap(event.target.value)} aria-label="Carryover cap minutes" placeholder="Carryover cap minutes" disabled={expires} />
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expires} onChange={(event) => setExpires(event.target.checked)} disabled={Boolean(carryoverCap)} /> Expire at year end</label>
+                <input className={inputClass} type="number" min="1" value={tenureMonths} onChange={(event) => setTenureMonths(event.target.value)} aria-label="Tenure tier months" placeholder="Tier after months" />
+                <input className={inputClass} type="number" min="1" value={tenureAmount} onChange={(event) => setTenureAmount(event.target.value)} aria-label="Tenure tier days" placeholder="Tier days per year" />
+              </div>
             )}
             <button className={buttonClass} disabled={!categoryId}>Create policy</button>
           </form>
+          <div className="space-y-3 md:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">Holiday calendar</h2>
+                <p className="text-xs text-neutral-500">Observed dates are frozen into submitted requests.</p>
+              </div>
+              <button className={buttonClass} type="button" onClick={() => void syncHolidays()}>Sync US holidays</button>
+            </div>
+            <p className="text-sm text-neutral-600">
+              {holidays.length ? `${holidays.length} holidays loaded for ${new Date().getFullYear()}` : 'No holidays loaded.'}
+            </p>
+          </div>
         </section>
       )}
 
@@ -216,6 +260,17 @@ export default function App() {
                 <p className="text-sm text-neutral-500">
                   {policy.category_name} · {policy.current_version.kind.toLowerCase()} · version {policy.version_count}
                 </p>
+                {policy.current_version.kind === 'ACCRUAL' && (
+                  <p className="mt-1 text-xs text-neutral-500">
+                    {policy.current_version.rules.length > 1 ? `${policy.current_version.rules.length} tenure tiers · ` : ''}
+                    {policy.current_version.max_balance_minutes ? `cap ${policy.current_version.max_balance_minutes} min · ` : ''}
+                    {policy.current_version.expires_at_period_end
+                      ? 'expires yearly'
+                      : policy.current_version.carryover_cap_minutes !== null
+                        ? `carryover ${policy.current_version.carryover_cap_minutes} min`
+                        : 'no rollover limit'}
+                  </p>
+                )}
               </div>
               {actor?.is_admin && (
                 <select

@@ -103,6 +103,14 @@ class PolicyVersion(Base, TimestampMixin):
     )
     allow_negative: Mapped[bool] = mapped_column(nullable=False, default=False)
     negative_floor_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_balance_minutes: Mapped[int | None] = mapped_column(Integer)
+    carryover_cap_minutes: Mapped[int | None] = mapped_column(Integer)
+    expires_at_period_end: Mapped[bool] = mapped_column(nullable=False, default=False)
+    tenure_transition: Mapped[enums.TenureTransition] = mapped_column(
+        _enum(enums.TenureTransition, "tenure_transition"),
+        nullable=False,
+        default=enums.TenureTransition.NEXT_PERIOD,
+    )
 
     policy: Mapped[Policy] = relationship(back_populates="versions")
     rules: Mapped[list[AccrualRule]] = relationship(
@@ -135,6 +143,7 @@ class AccrualRule(Base):
         _enum(enums.AccruesAt, "accrues_at")
     )
     per_minutes_worked: Mapped[int | None] = mapped_column(Integer)
+    min_tenure_months: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     version: Mapped[PolicyVersion] = relationship(back_populates="rules")
 
@@ -217,6 +226,19 @@ class JobRun(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     entries_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class Holiday(Base, TimestampMixin):
+    __tablename__ = "holidays"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    observed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    __table_args__ = (
+        UniqueConstraint("company_id", "date", name="uq_holiday_company_date"),
+    )
 
 
 class TimeOffRequest(Base, TimestampMixin):

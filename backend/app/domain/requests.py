@@ -8,7 +8,13 @@ class RequestError(ValueError):
 
 
 def request_days(
-    *, start: date, end: date, partial_minutes: int | None, day_minutes: int = 480
+    *,
+    start: date,
+    end: date,
+    partial_minutes: int | None,
+    day_minutes: int = 480,
+    work_days: tuple[int, ...] = (1, 2, 3, 4, 5),
+    holidays: frozenset[date] = frozenset(),
 ) -> list[tuple[date, int]]:
     if end < start:
         raise RequestError("The end date cannot be before the start date.")
@@ -20,7 +26,7 @@ def request_days(
     days = []
     cursor = start
     while cursor <= end:
-        if cursor.isoweekday() <= 5:
+        if cursor.isoweekday() in work_days and cursor not in holidays:
             days.append((cursor, partial_minutes or day_minutes))
         cursor += timedelta(days=1)
     if not days:

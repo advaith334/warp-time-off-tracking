@@ -26,6 +26,19 @@ def _validate_balance_settings(allow_negative: bool, floor: int) -> None:
         raise PolicyError("A negative-balance policy needs a floor below zero.")
 
 
+def _validate_advanced_settings(
+    max_balance_minutes: int | None,
+    carryover_cap_minutes: int | None,
+    expires_at_period_end: bool,
+) -> None:
+    if max_balance_minutes is not None and max_balance_minutes <= 0:
+        raise PolicyError("The maximum balance must be greater than zero.")
+    if carryover_cap_minutes is not None and carryover_cap_minutes < 0:
+        raise PolicyError("The carryover cap cannot be negative.")
+    if expires_at_period_end and carryover_cap_minutes is not None:
+        raise PolicyError("Choose either full expiration or a carryover cap, not both.")
+
+
 def _add_version(
     session: Session,
     *,
@@ -39,6 +52,10 @@ def _add_version(
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
     allow_negative: bool = False,
     negative_floor_minutes: int = 0,
+    max_balance_minutes: int | None = None,
+    carryover_cap_minutes: int | None = None,
+    expires_at_period_end: bool = False,
+    tenure_transition: enums.TenureTransition = enums.TenureTransition.NEXT_PERIOD,
 ) -> PolicyVersion:
     version = PolicyVersion(
         policy_id=policy_id,
@@ -50,6 +67,10 @@ def _add_version(
         new_hire_proration=new_hire_proration,
         allow_negative=allow_negative,
         negative_floor_minutes=negative_floor_minutes,
+        max_balance_minutes=max_balance_minutes,
+        carryover_cap_minutes=carryover_cap_minutes,
+        expires_at_period_end=expires_at_period_end,
+        tenure_transition=tenure_transition,
     )
     session.add(version)
     session.flush()
@@ -75,9 +96,16 @@ def create(
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
     allow_negative: bool = False,
     negative_floor_minutes: int = 0,
+    max_balance_minutes: int | None = None,
+    carryover_cap_minutes: int | None = None,
+    expires_at_period_end: bool = False,
+    tenure_transition: enums.TenureTransition = enums.TenureTransition.NEXT_PERIOD,
 ) -> Policy:
     _validate(kind, rules)
     _validate_balance_settings(allow_negative, negative_floor_minutes)
+    _validate_advanced_settings(
+        max_balance_minutes, carryover_cap_minutes, expires_at_period_end
+    )
     category = session.get(TimeOffCategory, category_id)
     if category is None or category.company_id != company_id:
         raise PolicyError("Unknown time-off category.")
@@ -102,6 +130,10 @@ def create(
         new_hire_proration=new_hire_proration,
         allow_negative=allow_negative,
         negative_floor_minutes=negative_floor_minutes,
+        max_balance_minutes=max_balance_minutes,
+        carryover_cap_minutes=carryover_cap_minutes,
+        expires_at_period_end=expires_at_period_end,
+        tenure_transition=tenure_transition,
     )
     session.refresh(policy)
     return policy
@@ -120,9 +152,16 @@ def update(
     new_hire_proration: enums.NewHireProration = enums.NewHireProration.PRORATE,
     allow_negative: bool = False,
     negative_floor_minutes: int = 0,
+    max_balance_minutes: int | None = None,
+    carryover_cap_minutes: int | None = None,
+    expires_at_period_end: bool = False,
+    tenure_transition: enums.TenureTransition = enums.TenureTransition.NEXT_PERIOD,
 ) -> PolicyVersion:
     _validate(kind, rules)
     _validate_balance_settings(allow_negative, negative_floor_minutes)
+    _validate_advanced_settings(
+        max_balance_minutes, carryover_cap_minutes, expires_at_period_end
+    )
     current = latest_version(session, policy.id)
     if current is None:
         raise PolicyError("Policy has no version.")
@@ -144,6 +183,10 @@ def update(
         new_hire_proration=new_hire_proration,
         allow_negative=allow_negative,
         negative_floor_minutes=negative_floor_minutes,
+        max_balance_minutes=max_balance_minutes,
+        carryover_cap_minutes=carryover_cap_minutes,
+        expires_at_period_end=expires_at_period_end,
+        tenure_transition=tenure_transition,
     )
 
 

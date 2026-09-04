@@ -10,7 +10,7 @@ from app.api.responses import JobRunOut
 from app.db import get_session
 from app.integrations import Employee
 from app.schemas import PayrollAccrualIn
-from app.services import accrual_service
+from app.services import accrual_service, rollover_service
 
 router = APIRouter(prefix="/api/accruals", tags=["accruals"])
 
@@ -37,5 +37,17 @@ def payroll(
     run = accrual_service.on_payroll_processed(
         session, company_id=company_id, **payload.model_dump()
     )
+    session.commit()
+    return run
+
+
+@router.post("/rollover", response_model=JobRunOut)
+def rollover(
+    as_of: date,
+    session: Session = Depends(get_session),
+    company_id: str = Depends(get_company_id),
+    _actor: Employee = Depends(require_admin),
+):
+    run = rollover_service.run(session, company_id=company_id, as_of=as_of)
     session.commit()
     return run

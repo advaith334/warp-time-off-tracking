@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app import enums
 from app.domain.requests import RequestError, request_days
+from app.integrations import employee_service
 from app.models import (
     BalanceSnapshot,
+    Holiday,
     PolicyVersion,
     RequestDay,
     RequestEvent,
@@ -17,6 +19,13 @@ from app.models import (
 from app.services import assignment_service, ledger_service, policy_service
 
 LIVE = (enums.RequestStatus.PENDING, enums.RequestStatus.APPROVED)
+
+
+def _minutes_by_year(request: TimeOffRequest) -> dict[int, int]:
+    totals: dict[int, int] = {}
+    for day in request.days:
+        totals[day.date.year] = totals.get(day.date.year, 0) + day.minutes
+    return totals
 
 
 def _snapshot(
@@ -68,10 +77,23 @@ def preview(
     )
     if version is None:
         raise RequestError("No policy version is effective on the request date.")
+    employee = employee_service.get(employee_id)
+    holiday_dates = frozenset(
+        session.scalars(
+            select(Holiday.date).where(
+                Holiday.company_id == assignment.company_id,
+                Holiday.date >= start_date,
+                Holiday.date <= end_date,
+            )
+        )
+    )
     days = request_days(
         start=start_date,
         end=end_date,
         partial_minutes=partial_minutes,
+        day_minutes=employee.work_minutes_per_day,
+        work_days=employee.work_days,
+        holidays=holiday_dates,
     )
     overlap = session.scalar(
         select(TimeOffRequest.id).where(
@@ -169,19 +191,20 @@ def decide(
         )
         if snapshot.balance_minutes - snapshot.pending_hold_minutes < floor:
             raise RequestError("The balance changed and can no longer cover this request.")
-        ledger_service.post(
-            session,
-            company_id=request.company_id,
-            employee_id=request.employee_id,
-            policy_id=request.policy_id,
-            policy_version_id=request.policy_version_id,
-            entry_type=enums.EntryType.REQUEST_DEBIT,
-            amount_minutes=-request.total_minutes,
-            effective_date=request.start_date,
-            source_type=enums.SourceType.REQUEST,
-            source_id=request.id,
-            note=request.reason,
-        )
+        for year, minutes in _minutes_by_year(request).items():
+            ledger_service.post(
+                session,
+                company_id=request.company_id,
+                employee_id=request.employee_id,
+                policy_id=request.policy_id,
+                policy_version_id=request.policy_version_id,
+                entry_type=enums.EntryType.REQUEST_DEBIT,
+                amount_minutes=-minutes,
+                effective_date=min(day.date for day in request.days if day.date.year == year),
+                source_type=enums.SourceType.REQUEST,
+                source_id=f"{request.id}:{year}",
+                note=request.reason,
+            )
     if policy_version.kind != enums.PolicyKind.UNLIMITED:
         snapshot.pending_hold_minutes -= request.total_minutes
     request.status = target
@@ -216,19 +239,20 @@ def cancel(
     if previous == enums.RequestStatus.PENDING:
         snapshot.pending_hold_minutes -= request.total_minutes
     else:
-        ledger_service.post(
-            session,
-            company_id=request.company_id,
-            employee_id=request.employee_id,
-            policy_id=request.policy_id,
-            policy_version_id=request.policy_version_id,
-            entry_type=enums.EntryType.REQUEST_REVERSAL,
-            amount_minutes=request.total_minutes,
-            effective_date=today,
-            source_type=enums.SourceType.REQUEST_CANCELLATION,
-            source_id=request.id,
-            note="Cancelled before leave started",
-        )
+        for year, minutes in _minutes_by_year(request).items():
+            ledger_service.post(
+                session,
+                company_id=request.company_id,
+                employee_id=request.employee_id,
+                policy_id=request.policy_id,
+                policy_version_id=request.policy_version_id,
+                entry_type=enums.EntryType.REQUEST_REVERSAL,
+                amount_minutes=minutes,
+                effective_date=min(day.date for day in request.days if day.date.year == year),
+                source_type=enums.SourceType.REQUEST_CANCELLATION,
+                source_id=f"{request.id}:{year}",
+                note="Cancelled before leave started",
+            )
     request.status = enums.RequestStatus.CANCELLED
     request.events.append(
         RequestEvent(

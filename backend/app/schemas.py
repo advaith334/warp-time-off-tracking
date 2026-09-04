@@ -15,9 +15,17 @@ class AccrualRuleIn(BaseModel):
     frequency: enums.Schedule | None = None
     accrues_at: enums.AccruesAt | None = None
     per_minutes_worked: int | None = Field(default=None, gt=0)
+    min_tenure_months: int = Field(default=0, ge=0)
 
 
-class PolicyCreateIn(BaseModel):
+class AdvancedPolicyFields(BaseModel):
+    max_balance_minutes: int | None = Field(default=None, gt=0)
+    carryover_cap_minutes: int | None = Field(default=None, ge=0)
+    expires_at_period_end: bool = False
+    tenure_transition: enums.TenureTransition = enums.TenureTransition.NEXT_PERIOD
+
+
+class PolicyCreateIn(AdvancedPolicyFields):
     name: str = Field(min_length=1, max_length=128)
     category_id: str
     effective_from: date
@@ -29,7 +37,7 @@ class PolicyCreateIn(BaseModel):
     negative_floor_minutes: int = Field(default=0, le=0)
 
 
-class PolicyUpdateIn(BaseModel):
+class PolicyUpdateIn(AdvancedPolicyFields):
     name: str | None = None
     effective_from: date
     kind: enums.PolicyKind
@@ -84,3 +92,9 @@ class AssignIn(BaseModel):
 
 class EndAssignmentIn(BaseModel):
     effective_to: date
+
+
+class HolidayIn(BaseModel):
+    date: date
+    name: str = Field(min_length=1, max_length=128)
+    observed: bool = False

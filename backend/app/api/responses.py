@@ -40,6 +40,7 @@ class AccrualRuleOut(Out):
     frequency: enums.Schedule | None
     accrues_at: enums.AccruesAt | None
     per_minutes_worked: int | None
+    min_tenure_months: int
 
 
 class PolicyVersionOut(Out):
@@ -52,6 +53,10 @@ class PolicyVersionOut(Out):
     new_hire_proration: enums.NewHireProration
     allow_negative: bool
     negative_floor_minutes: int
+    max_balance_minutes: int | None
+    carryover_cap_minutes: int | None
+    expires_at_period_end: bool
+    tenure_transition: enums.TenureTransition
     created_at: datetime
     rules: list[AccrualRuleOut]
 
@@ -124,6 +129,13 @@ class JobRunOut(Out):
     entries_created: int
     error: str | None
     created_at: datetime
+
+
+class HolidayOut(Out):
+    id: str
+    date: date
+    name: str
+    observed: bool
 
 
 class RequestDayOut(Out):

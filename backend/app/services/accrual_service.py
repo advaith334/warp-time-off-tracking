@@ -6,11 +6,50 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import enums
-from app.domain.accrual import payroll_amount, scheduled_amount
+from app.domain.accrual import completed_tenure_months, payroll_amount, scheduled_amount
 from app.domain.periods import iter_periods
 from app.integrations import employee_service
 from app.models import JobRun, PolicyAssignment
 from app.services import ledger_service, policy_service
+
+
+def _post_accrual(
+    session: Session,
+    *,
+    amount: int,
+    max_balance_minutes: int | None,
+    source_id: str,
+    note: str,
+    **values,
+) -> int:
+    """Post the earned credit and make any cap loss explicit in the ledger."""
+    before = ledger_service.balance(
+        session,
+        employee_id=values["employee_id"],
+        policy_id=values["policy_id"],
+        as_of=values["effective_date"],
+    )
+    created = ledger_service.post(
+        session,
+        **values,
+        entry_type=enums.EntryType.ACCRUAL,
+        amount_minutes=amount,
+        source_id=source_id,
+        note=note,
+    )
+    if max_balance_minutes is None:
+        return created
+    forfeited = max(before + amount - max_balance_minutes, 0)
+    if forfeited:
+        created += ledger_service.post(
+            session,
+            **values,
+            entry_type=enums.EntryType.FORFEITURE,
+            amount_minutes=-forfeited,
+            source_id=f"{source_id}:forfeiture",
+            note=f"Balance cap of {max_balance_minutes} minutes",
+        )
+    return created
 
 
 def run_scheduled(session: Session, *, company_id: str, as_of: date) -> JobRun:
@@ -44,23 +83,34 @@ def run_scheduled(session: Session, *, company_id: str, as_of: date) -> JobRun:
                     )
                     if active is None or active.id != version.id:
                         continue
+                    tenure = completed_tenure_months(employee.start_date, period.start)
+                    eligible = [
+                        candidate
+                        for candidate in version.rules
+                        if candidate.method == enums.AccrualMethod.TIME
+                        and candidate.min_tenure_months <= tenure
+                    ]
+                    selected = max(eligible, key=lambda candidate: candidate.min_tenure_months)
+                    if selected.id != rule.id:
+                        continue
                     amount = scheduled_amount(
                         amount=rule.amount,
                         unit=rule.unit,
                         period=period,
                         eligible_from=eligible_from,
                         proration=version.new_hire_proration,
+                        day_minutes=employee.work_minutes_per_day,
                     )
                     if not amount:
                         continue
-                    created += ledger_service.post(
+                    created += _post_accrual(
                         session,
+                        amount=amount,
+                        max_balance_minutes=version.max_balance_minutes,
                         company_id=company_id,
                         employee_id=assignment.employee_id,
                         policy_id=assignment.policy_id,
                         policy_version_id=version.id,
-                        entry_type=enums.EntryType.ACCRUAL,
-                        amount_minutes=amount,
                         effective_date=effective,
                         source_type=enums.SourceType.SCHEDULED_ACCRUAL,
                         source_id=f"{assignment.id}:{rule.id}:{period.start.isoformat()}",
@@ -100,6 +150,7 @@ def on_payroll_processed(
             )
         )
         for assignment in assignments:
+            employee = employee_service.get(employee_id)
             version = policy_service.version_effective_on(
                 session, assignment.policy_id, period_end
             )
@@ -108,21 +159,34 @@ def on_payroll_processed(
             for rule in version.rules:
                 if rule.method != enums.AccrualMethod.HOURS_WORKED:
                     continue
+                tenure = completed_tenure_months(
+                    employee.start_date, period_end
+                )
+                eligible = [
+                    candidate
+                    for candidate in version.rules
+                    if candidate.method == enums.AccrualMethod.HOURS_WORKED
+                    and candidate.min_tenure_months <= tenure
+                ]
+                selected = max(eligible, key=lambda candidate: candidate.min_tenure_months)
+                if selected.id != rule.id:
+                    continue
                 amount = payroll_amount(
                     minutes_worked=minutes_worked,
                     amount=rule.amount,
                     unit=rule.unit,
                     per_minutes_worked=rule.per_minutes_worked,
+                    day_minutes=employee.work_minutes_per_day,
                 )
                 if amount:
-                    created += ledger_service.post(
+                    created += _post_accrual(
                         session,
+                        amount=amount,
+                        max_balance_minutes=version.max_balance_minutes,
                         company_id=company_id,
                         employee_id=employee_id,
                         policy_id=assignment.policy_id,
                         policy_version_id=version.id,
-                        entry_type=enums.EntryType.ACCRUAL,
-                        amount_minutes=amount,
                         effective_date=period_end,
                         source_type=enums.SourceType.PAYROLL_ACCRUAL,
                         source_id=f"{payroll_run_id}:{employee_id}:{rule.id}",

@@ -1,5 +1,7 @@
 """Append-only ledger writes and rebuildable balance snapshots."""
 
+from datetime import date
+
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -7,15 +9,20 @@ from sqlalchemy.orm import Session
 from app.models import BalanceSnapshot, LedgerEntry
 
 
-def balance(session: Session, *, employee_id: str, policy_id: str) -> int:
-    return int(
-        session.scalar(
-            select(func.coalesce(func.sum(LedgerEntry.amount_minutes), 0)).where(
-                LedgerEntry.employee_id == employee_id,
-                LedgerEntry.policy_id == policy_id,
-            )
-        )
+def balance(
+    session: Session,
+    *,
+    employee_id: str,
+    policy_id: str,
+    as_of: date | None = None,
+) -> int:
+    query = select(func.coalesce(func.sum(LedgerEntry.amount_minutes), 0)).where(
+        LedgerEntry.employee_id == employee_id,
+        LedgerEntry.policy_id == policy_id,
     )
+    if as_of is not None:
+        query = query.where(LedgerEntry.effective_date <= as_of)
+    return int(session.scalar(query))
 
 
 def refresh_snapshot(session: Session, *, employee_id: str, policy_id: str) -> int:

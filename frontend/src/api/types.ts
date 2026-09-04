@@ -16,6 +16,7 @@ export type Rule = {
   unit: 'DAY' | 'HOUR' | 'MINUTE'
   frequency: 'MONTHLY' | 'YEARLY' | null
   accrues_at: 'START_OF_PERIOD' | 'END_OF_PERIOD' | null
+  min_tenure_months: number
 }
 
 export type Policy = {
@@ -29,8 +30,19 @@ export type Policy = {
     version_no: number
     effective_from: string
     kind: 'UNLIMITED' | 'ACCRUAL'
+    max_balance_minutes: number | null
+    carryover_cap_minutes: number | null
+    expires_at_period_end: boolean
+    tenure_transition: 'NEXT_PERIOD'
     rules: Rule[]
   }
+}
+
+export type Holiday = {
+  id: string
+  date: string
+  name: string
+  observed: boolean
 }
 
 export type Balance = {
